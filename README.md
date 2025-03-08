@@ -132,7 +132,7 @@ Detailed logging is implemented for debugging and monitoring:
 
 1. System Architecture
 1.1 Component Diagram
-![Component Diagram](assets/component_diagram.png)
+
 
 1.2 Data Flow
 ![Data Flow](assets/data_flow.png)
