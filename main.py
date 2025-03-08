@@ -10,6 +10,11 @@ from dotenv import load_dotenv
 import random
 import re
 from vector_store import VectorStore
+from utils import (
+    get_database_schema, format_schema_text, clean_sql_response, 
+    validate_sql, call_groq_api, load_input_file
+)
+from prompt import get_sql_generation_prompt, get_sql_correction_prompt
 
 load_dotenv()
 
@@ -17,19 +22,16 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Global variable to keep track of the total number of tokens
 total_tokens = 0
 
-# PostgreSQL Connection Parameters
 DB_CONFIG = {
-    'dbname': 'adobe_emerge',
-    'user': 'postgres',
-    'password': '1234',
-    'host': 'localhost',
-    'port': '5432'
+    'dbname': os.getenv('DB_NAME'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'), 
+    'host': os.getenv('DB_HOST'),
+    'port': os.getenv('DB_PORT')
 }
 
-# Function to establish database connection
 def get_db_connection():
     """
     Establish a connection to the PostgreSQL database.
@@ -43,7 +45,6 @@ def get_db_connection():
         logger.error(f"Database connection error: {e}")
         return None
 
-# Function to extract database schema
 def get_database_schema():
     """
     Extract the database schema including tables, columns, and relationships.
@@ -56,7 +57,6 @@ def get_database_schema():
         if conn:
             cur = conn.cursor()
             
-            # Get all tables
             cur.execute("""
                 SELECT table_name FROM information_schema.tables 
                 WHERE table_schema = 'public'
@@ -241,7 +241,7 @@ def load_input_file(file_path):
         return []
 
 # Function to generate SQL statements from NL queries using vector retrieval
-def generate_sqls(data, db_schema, vector_store=None, batch_size=5):
+def generate_sqls(data, db_schema, db_config, vector_store=None, batch_size=5):
     """
     Generate SQL statements from the natural language queries using vector retrieval when possible.
     
@@ -254,31 +254,13 @@ def generate_sqls(data, db_schema, vector_store=None, batch_size=5):
     global total_tokens
     results = []
     
-    # Get your API key from environment variable
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        logger.error("GROQ API key not found. Set the GROQ_API_KEY environment variable.")
+        logger.error("GROQ API key not found.")
         return results
     
-    # Choose an appropriate model within the 7B parameter limit
-    model = "llama-3.1-8b-instant"  # You can choose a different model if needed
-    
-    # Create a concise schema representation for the prompt
-    schema_text = "Database Schema:\n"
-    schema_text += "Tables:\n"
-    for table in db_schema['tables']:
-        schema_text += f"- {table} ("
-        column_texts = []
-        for col, dtype in db_schema['columns'][table].items():
-            is_pk = col in db_schema['primary_keys'].get(table, [])
-            pk_str = " PRIMARY KEY" if is_pk else ""
-            column_texts.append(f"{col} {dtype}{pk_str}")
-        schema_text += ", ".join(column_texts)
-        schema_text += ")\n"
-    
-    schema_text += "\nRelationships:\n"
-    for fk in db_schema['foreign_keys']:
-        schema_text += f"- {fk['table']}.{fk['column']} references {fk['foreign_table']}.{fk['foreign_column']}\n"
+    model = "llama-3.1-8b-instant"
+    schema_text = format_schema_text(db_schema)
     
     # Process in batches to manage rate limits
     for i in range(0, len(data), batch_size):
@@ -318,46 +300,29 @@ def generate_sqls(data, db_schema, vector_store=None, batch_size=5):
             # If no suitable SQL was retrieved or vector store not available, use the API
             if retrieved_sql is None:
                 # Create system prompt
-                system_prompt = f"""You are an expert SQL query generator. Your task is to convert natural language questions into correct and efficient PostgreSQL queries.
-
-{schema_text}
-
-Guidelines:
-1. Generate only the SQL query, no explanations.
-2. Ensure proper JOIN syntax and table relationships.
-3. Use aliasing for tables if needed for clarity.
-4. Include proper ORDER BY, GROUP BY, or filtering clauses as needed.
-5. The query must be executable in PostgreSQL.
-6. Return only the SQL query, nothing else."""
+                system_prompt = get_sql_generation_prompt(schema_text)
                 
-                # Construct messages
                 messages = [
                     {"role": "system", "content": system_prompt},
                 ]
                 
-                # Add few-shot examples if available
                 if few_shot_examples:
                     messages.extend(few_shot_examples)
                 
-                # Add the current query
                 messages.append({"role": "user", "content": f"Convert this natural language query to SQL: \"{nl_query}\""})
                 
-                # Call the Groq API
                 response_json, tokens = call_groq_api(api_key, model, messages)
                 total_tokens += tokens
                 
                 try:
                     sql_query = response_json['choices'][0]['message']['content'].strip()
                     
-                    # Clean the SQL query to remove markdown and other formatting
                     sql_query = clean_sql_response(sql_query)
                     logger.debug(f"Generated SQL query: {sql_query}")
                     
-                    # Validate the query
                     is_valid, error_message = validate_sql(sql_query)
                     
                     if not is_valid:
-                        # Try to fix the query if it's invalid
                         fix_messages = [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": f"Convert this natural language query to SQL: \"{nl_query}\""},
@@ -369,29 +334,24 @@ Guidelines:
                         total_tokens += fix_tokens
                         sql_query = clean_sql_response(fix_response['choices'][0]['message']['content'].strip())
                     
-                    # Add result to output list
                     results.append({"NL": nl_query, "Query": sql_query})
                     
-                    # Log progress
                     logger.info(f"Processed NL query: {nl_query[:50]}...")
                     
                 except Exception as e:
                     logger.error(f"Error processing query: {e}")
-                    # Add empty result in case of error
                     results.append({"NL": nl_query, "Query": ""})
             else:
-                # Use the retrieved SQL directly
                 results.append({"NL": nl_query, "Query": retrieved_sql})
                 logger.info(f"Used vector retrieval for query: {nl_query[:50]}...")
         
-        # Add a small delay between batches to manage rate limits
         if i + batch_size < len(data):
             time.sleep(1)
     
     return results
 
 # Function to correct SQL statements using vector retrieval
-def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
+def correct_sqls(data, db_schema, db_config, vector_store=None, batch_size=5):
     """
     Correct SQL statements using vector retrieval when possible.
     
@@ -404,31 +364,13 @@ def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
     global total_tokens
     results = []
     
-    # Get your API key from environment variable
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         logger.error("GROQ API key not found. Set the GROQ_API_KEY environment variable.")
         return results
     
-    # Choose an appropriate model within the 7B parameter limit
-    model = "llama-3.1-8b-instant"  # You can choose a different model if needed
-    
-    # Create a concise schema representation for the prompt
-    schema_text = "Database Schema:\n"
-    schema_text += "Tables:\n"
-    for table in db_schema['tables']:
-        schema_text += f"- {table} ("
-        column_texts = []
-        for col, dtype in db_schema['columns'][table].items():
-            is_pk = col in db_schema['primary_keys'].get(table, [])
-            pk_str = " PRIMARY KEY" if is_pk else ""
-            column_texts.append(f"{col} {dtype}{pk_str}")
-        schema_text += ", ".join(column_texts)
-        schema_text += ")\n"
-    
-    schema_text += "\nRelationships:\n"
-    for fk in db_schema['foreign_keys']:
-        schema_text += f"- {fk['table']}.{fk['column']} references {fk['foreign_table']}.{fk['foreign_column']}\n"
+    model = "llama-3.1-8b-instant"
+    schema_text = format_schema_text(db_schema)
     
     # Process in batches to manage rate limits
     for i in range(0, len(data), batch_size):
@@ -471,17 +413,7 @@ def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
                 validation_result, error_message = validate_sql(incorrect_query)
                 
                 # Create system prompt
-                system_prompt = f"""You are an expert SQL query corrector. Your task is to fix incorrect PostgreSQL queries.
-
-{schema_text}
-
-Guidelines:
-1. Identify and fix any syntax errors.
-2. Check for incorrect table or column names.
-3. Ensure proper JOIN syntax and table relationships.
-4. Fix any logical errors in the query.
-5. The corrected query must be executable in PostgreSQL.
-6. Return only the corrected SQL query, nothing else."""
+                system_prompt = get_sql_correction_prompt(schema_text)
                 
                 # Construct messages with error information if available
                 messages = [
@@ -540,118 +472,21 @@ Guidelines:
                 results.append({"IncorrectQuery": incorrect_query, "CorrectQuery": retrieved_correction})
                 logger.info(f"Used vector retrieval for SQL correction: {incorrect_query[:50]}...")
         
-        # Add a small delay between batches to manage rate limits
         if i + batch_size < len(data):
             time.sleep(1)
     
     return results
 
-# Function to call the Groq API with retry logic
-def call_groq_api(api_key, model, messages, temperature=0.0, max_tokens=1000, n=1, max_retries=5):
-    """
-    Call the Groq API to get a response from the language model with retry logic.
-    
-    :param api_key: API key for authentication
-    :param model: Model name to use
-    :param messages: List of message dictionaries
-    :param temperature: Temperature for the model
-    :param max_tokens: Maximum number of tokens to generate
-    :param n: Number of responses to generate
-    :param max_retries: Maximum number of retry attempts
-    :return: Response from the API and number of tokens used
-    """
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
-    }
-    
-    data = {
-        "model": model,
-        "messages": messages,
-        'temperature': temperature,
-        'max_tokens': max_tokens,
-        'n': n
-    }
-    
-    # Retry logic with exponential backoff
-    retry_count = 0
-    base_wait_time = 2  # Starting wait time in seconds
-    
-    while retry_count <= max_retries:
-        try:
-            response = requests.post(url, headers=headers, json=data)
-            response_json = response.json()
-            
-            # Check for rate limit error
-            if response.status_code == 429 or (
-                'error' in response_json and 
-                response_json.get('error', {}).get('code') == 'rate_limit_exceeded'
-            ):
-                retry_count += 1
-                if retry_count > max_retries:
-                    logger.error(f"Maximum retries ({max_retries}) exceeded for API call")
-                    return {"choices": [{"message": {"content": ""}}]}, 0
-                
-                # Calculate wait time with exponential backoff and jitter
-                wait_time = base_wait_time * (2 ** (retry_count - 1))
-                # Add some randomness to avoid thundering herd problem
-                wait_time = wait_time * (0.4 + 0.3 * random.random())
-                
-                # Extract wait time from error message if available
-                error_message = response_json.get('error', {}).get('message', '')
-                wait_time_match = re.search(r'try again in (\d+\.\d+)s', error_message)
-                if wait_time_match:
-                    suggested_wait = float(wait_time_match.group(1))
-                    # Use the suggested wait time plus a small buffer
-                    wait_time = suggested_wait + 0.3
-                
-                logger.warning(f"Rate limit exceeded. Retrying in {wait_time:.2f} seconds (attempt {retry_count}/{max_retries})")
-                time.sleep(wait_time)
-                continue
-            
-            # Handle other errors
-            if 'error' in response_json:
-                error_message = response_json.get('error', {}).get('message', 'Unknown error')
-                logger.error(f"API error: {error_message}")
-                return {"choices": [{"message": {"content": ""}}]}, 0
-            
-            # Success
-            tokens_used = response_json.get('usage', {}).get('completion_tokens', 0)
-            return response_json, tokens_used
-            
-        except Exception as e:
-            retry_count += 1
-            logger.error(f"API call error: {e}, Retry attempt {retry_count}/{max_retries}")
-            
-            if retry_count > max_retries:
-                logger.error(f"Maximum retries ({max_retries}) exceeded for API call")
-                return {"choices": [{"message": {"content": ""}}]}, 0
-            
-            # Exponential backoff
-            wait_time = base_wait_time * (2 ** (retry_count - 1))
-            # Add some randomness to avoid thundering herd problem
-            wait_time = wait_time * (0.8 + 0.4 * random.random())
-            time.sleep(wait_time)
-    
-    # Should not reach here, but just in case
-    return {"choices": [{"message": {"content": ""}}]}, 0
-
-# Main function
 def main():
-    # Check for environment variable
+
     if not os.getenv("GROQ_API_KEY"):
         logger.error("GROQ_API_KEY environment variable not set")
         print("Please set the GROQ_API_KEY environment variable")
-        print("Example: export GROQ_API_KEY=your_api_key")
         return 0, 0
     
-    # Specify the paths to input files
     input_file_path_1 = 'data/train_generate_task.json'
     input_file_path_2 = 'data/train_query_correction_task.json'
     
-    # Load data from input files
     data_1 = load_input_file(input_file_path_1)
     data_2 = load_input_file(input_file_path_2)
     
@@ -667,51 +502,41 @@ def main():
         logger.error("Failed to extract database schema.")
         return 0, 0
     
-    # Initialize vector store
     logger.info("Initializing vector store...")
     vector_store = VectorStore()
     
-    # Try to load existing vector indexes
     indexes_loaded = vector_store.load_indexes()
     slice_size = 5
     if  not indexes_loaded:
-        # If loading fails, build indexes from training data
+
         logger.info("Building vector indexes from training data...")
         if data_1:
             vector_store.build_nl_to_sql_index(data_1[slice_size:])
         if data_2:
             vector_store.build_sql_correction_index(data_2[slice_size:])
     
-    # Get the subset of data to process if needed (for testing)
-    # Comment these lines for full data processing
-    # slice_size = 5  # Number of items to process for testing
-    # test_data_1 = data_1[:slice_size] if data_1 else []
-    # test_data_2 = data_2[:slice_size] if data_2 else []
     test_data_1 = data_1
     test_data_2 = data_2
     
-    # Generate SQL statements
+
     start = time.time()
     logger.info("Starting SQL generation from natural language...")
-    sql_statements = generate_sqls(test_data_1, db_schema, vector_store=vector_store)
+    sql_statements = generate_sqls(test_data_1, db_schema, DB_CONFIG, vector_store=vector_store)
     generate_sqls_time = time.time() - start
     logger.info(f"SQL generation completed in {generate_sqls_time:.2f} seconds")
     
-    # Correct SQL statements
     start = time.time()
     logger.info("Starting SQL correction...")
-    corrected_sqls = correct_sqls(test_data_2, db_schema, vector_store=vector_store)
+    corrected_sqls = correct_sqls(test_data_2, db_schema, DB_CONFIG, vector_store=vector_store)
     correct_sqls_time = time.time() - start
     logger.info(f"SQL correction completed in {correct_sqls_time:.2f} seconds")
     
-    # Ensure outputs match input lengths
     if len(test_data_1) > 0:
         assert len(test_data_1) == len(sql_statements), "Number of generated SQL statements doesn't match input"
     
     if len(test_data_2) > 0:
         assert len(test_data_2) == len(corrected_sqls), "Number of corrected SQL statements doesn't match input"
     
-    # Write outputs to files
     logger.info("Writing results to output files...")
     
     with open('output_sql_generation_task.json', 'w') as f:
