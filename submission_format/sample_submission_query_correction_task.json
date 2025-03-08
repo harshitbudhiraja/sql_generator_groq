@@ -1,0 +1,18 @@
+[
+  {
+    "IncorrectQuery": "SELECT * FROM campaigns",
+    "CorrectQuery": "SELECT * FROM campaigns"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM campaigns",
+    "CorrectQuery": "SELECT * FROM campaigns"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM campaigns",
+    "CorrectQuery": "SELECT * FROM campaigns"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM campaigns",
+    "CorrectQuery": "SELECT * FROM campaigns"
+  }
+]

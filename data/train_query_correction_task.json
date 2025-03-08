@@ -1,0 +1,978 @@
+[
+  {
+    "IncorrectQuery": "SELECT * FROM transactions_and_payments AS t1 JOIN inventory AS t2 ON t1.linked_order_reference_identifier = t2.id JOIN shipping AS t3 ON t1.transaction_unique_identifier = t3.id JOIN cart AS t4 ON t1.corresponding_customer_reference_identifier = t4.fk_user_id JOIN order_items AS t5 ON t1.linked_order_reference_identifier = t5.order_id WHERE t1.transaction_status = 'success' AND t2.stock_status = 'in_stock' AND t3.shipping_status = 'shipped' AND t4.cart_status = 'active' AND t5.item_status = 'delivered' GROUP BY t1.transaction_unique_identifier, t2.id, t3.id, t4.id, t5.order_item_id ORDER BY t1.transaction_date_and_time DESC LIMIT 1 OFFSET 100;",
+    "CorrectQuery": "SELECT t1.transaction_unique_identifier, t2.id, t3.id, t4.id, t5.order_item_id FROM transactions_and_payments AS t1 JOIN inventory AS t2 ON t1.linked_order_reference_identifier = t2.referenced_product_id JOIN shipping AS t3 ON t3.fk_order_id = t1.linked_order_reference_identifier JOIN cart AS t4 ON t4.fk_user_id = t1.corresponding_customer_reference_identifier JOIN order_items AS t5 ON t5.order_id = t1.linked_order_reference_identifier WHERE t1.transaction_status = 'success' AND t2.stock_status = 'in_stock' AND t3.shipping_status = 'shipped' AND t4.cart_status = 'active' AND t5.item_status = 'delivered' GROUP BY t1.transaction_unique_identifier, t2.id, t3.id, t4.id, t5.order_item_id ORDER BY t1.transaction_date_and_time DESC LIMIT 1 OFFSET 100;"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(preferences_total_orders) FROM customerinfo WHERE person_income > 50000 AND person_occupation = sales;",
+    "CorrectQuery": "SELECT SUM(preferences_total_orders) FROM customerinfo WHERE person_income > 50000 AND person_occupation = 'sales';"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customerinfo JOIN wishlist ON customerinfo.person_customer_id = wishlist.priority_level",
+    "CorrectQuery": "SELECT * FROM customerinfo JOIN wishlist ON customerinfo.person_customer_id = wishlist.fk_user_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM product_reviews_and_ratings AS prr INNER JOIN transactions_and_payments AS tap ON prr.review_unique_identifier = tap.transaction_unique_identifier INNER JOIN shipping AS s ON s.fk_order_id = tap.linked_order_reference_identifier INNER JOIN products AS p ON p.unique_product_identifier = s.fk_order_id INNER JOIN cart AS c ON c.fk_product_id = p.unique_product_identifier WHERE prr.submitted_review_star_rating > 5 AND tap.total_transaction_amount < 0 AND s.shipping_status = 'shipped' AND p.standard_retail_price_including_tax > 1000 AND c.quantity > 10 GROUP BY prr.review_unique_identifier, tap.transaction_unique_identifier, s.id, p.unique_product_identifier, c.id HAVING SUM(prr.number_of_helpful_votes_received) > 1000",
+    "CorrectQuery": "SELECT * FROM product_reviews_and_ratings AS prr INNER JOIN products AS p ON prr.referenced_product_identifier = p.unique_product_identifier INNER JOIN cart AS c ON c.fk_product_id = p.unique_product_identifier INNER JOIN transactions_and_payments AS tap ON tap.corresponding_customer_reference_identifier = c.fk_user_id INNER JOIN shipping AS s ON s.fk_order_id = tap.linked_order_reference_identifier WHERE prr.submitted_review_star_rating > 5 AND tap.total_transaction_amount > 0 AND s.shipping_status = 'shipped' AND p.standard_retail_price_including_tax > 0 AND c.quantity > 0"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program AS clp JOIN product_reviews_and_ratings AS prr ON clp.exclusive_member_early_access = prr.submitted_review_star_rating JOIN events AS e ON prr.number_of_helpful_votes_received = e.event_id JOIN suppliers AS s ON e.device_ip_address = s.supplier_tax_identification_number JOIN cart AS c ON s.total_number_of_products_supplied = c.quantity WHERE clp.accumulated_loyalty_points_balance = 'abc' AND prr.verification_status_of_reviewer = e.push_notification_clicked",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program AS clp JOIN product_reviews_and_ratings AS prr ON clp.associated_customer_reference_id = prr.referenced_product_identifier JOIN events AS e ON prr.referenced_product_identifier = e.order_id JOIN suppliers AS s ON e.event_id = s.supplier_unique_identifier JOIN cart AS c ON e.order_id = c.fk_product_id WHERE clp.accumulated_loyalty_points_balance > 0 AND prr.verification_status_of_reviewer = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT campaign_id FROM campaigns WHERE campaign_status = 1",
+    "CorrectQuery": "SELECT campaign_id FROM campaigns WHERE campaign_status = 'active'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM refunds_returns WHERE fk_user_id = 123 AND fk_order_id = 'abc'",
+    "CorrectQuery": "SELECT * FROM refunds_returns WHERE fk_user_id = 123 AND fk_order_id IS NULL"
+  },
+  {
+    "IncorrectQuery": "SELECT pr.submitted_review_star_rating, SUM(tp.final_billed_amount) AS total_spent, ci.person_first_name, ci.person_last_name FROM product_reviews_and_ratings pr JOIN transactions_and_payments tp ON pr.reviewing_customer_identifier = tp.corresponding_customer_reference_identifier LEFT JOIN customerinfo ci ON pr.reviewing_customer_identifier = ci.person_customer_id LEFT JOIN wishlist w ON ci.person_customer_id = w.fk_user_id WHERE pr.review_moderation_status = 'approved' AND pr.customer_review_submission_date > '2022-01-01' AND pr.customer_review_submission_date < '2023-01-01' AND tp.transaction_date_and_time > '2022-01-01' AND tp.transaction_date_and_time < '2023-01-01' AND w.wishlist_status = 'active' AND ci.account_has_active_subscription = true GROUP BY pr.submitted_review_star_rating, ci.person_first_name, ci.person_last_name HAVING COUNT(pr.review_unique_identifier) > 10 ORDER BY total_spent DESC LIMIT 25;",
+    "CorrectQuery": "SELECT pr.submitted_review_star_rating, SUM(tp.final_billed_amount) AS total_spent, ci.person_first_name, ci.person_last_name FROM product_reviews_and_ratings pr JOIN transactions_and_payments tp ON pr.reviewing_customer_identifier = tp.corresponding_customer_reference_identifier LEFT JOIN customerinfo ci ON pr.reviewing_customer_identifier = ci.person_customer_id LEFT JOIN wishlist w ON ci.person_customer_id = w.fk_user_id WHERE pr.review_approval_moderation_status = 'approved' AND pr.customer_review_submission_date > '2022-01-01' AND pr.customer_review_submission_date < '2023-01-01' AND tp.transaction_date_and_time > '2022-01-01' AND tp.transaction_date_and_time < '2023-01-01' AND w.wishlist_status = 'active' AND ci.account_has_active_subscription = true GROUP BY pr.submitted_review_star_rating, ci.person_first_name, ci.person_last_name HAVING COUNT(pr.review_unique_identifier) > 10 ORDER BY total_spent DESC LIMIT 25;"
+  },
+  {
+    "IncorrectQuery": "SELECT c.person_first_name, p.product_display_name, t.transaction_date_and_time FROM customerinfo c JOIN transactions_and_payments t ON c.person_customer_id = t.corresponding_customer_reference_identifier JOIN wishlist w ON w.fk_user_id = t.corresponding_customer_reference_identifier JOIN products p ON p.unique_product_identifier = w.fk_product_id WHERE c.account_has_active_subscription = TRUE AND t.final_billed_amount > 100 AND t.transaction_status = 'Completed' AND w.wishlist_status = 'active' AND p.active_product_status = TRUE AND c.preferences_avg_spent_per_order > 50 AND t.transaction_currency_code = 'USD' AND w.priority_level = 'high' AND p.perishable_product_flag = FALSE AND c.securitytwo_factor_enabled = TRUE",
+    "CorrectQuery": "SELECT c.person_first_name, p.product_display_name, t.transaction_date_and_time FROM customerinfo c JOIN transactions_and_payments t ON c.person_customer_id = t.corresponding_customer_reference_identifier JOIN wishlist w ON w.fk_user_id = c.person_customer_id JOIN products p ON p.unique_product_identifier = w.fk_product_id WHERE c.account_has_active_subscription = TRUE AND t.final_billed_amount > 100 AND t.transaction_status = 'Completed' AND w.wishlist_status = 'active' AND p.active_product_status = TRUE AND c.preferences_avg_spent_per_order > 50 AND t.transaction_currency_code = 'USD' AND w.priority_level = 'high' AND p.perishable_product_flag = FALSE AND c.securitytwo_factor_enabled = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM order_items JOIN customers_loyalty_program ON order_items.product_id = customers_loyalty_program.exclusive_member_early_access",
+    "CorrectQuery": "SELECT * FROM order_items JOIN customers_loyalty_program ON order_items.order_id = (SELECT order_id FROM order_items WHERE product_id IN (SELECT associated_customer_reference_id FROM customers_loyalty_program))"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM suppliers AS sp INNER JOIN cart AS c ON sp.supplier_unique_identifier = c.fk_user_id INNER JOIN shipping AS s ON s.fk_order_id = c.id INNER JOIN refunds_returns AS rr ON rr.fk_user_id = c.fk_user_id INNER JOIN customers_loyalty_program AS clp ON clp.exclusive_member_early_access = rr.fk_product_id WHERE sp.official_supplier_business_name = 'Supplier1' GROUP BY sp.official_supplier_business_name, c.discount_applied, s.shipping_status, rr.refund_initiated_by, clp.exclusive_member_early_access",
+    "CorrectQuery": "SELECT COUNT(*) FROM suppliers AS sp INNER JOIN cart AS c ON sp.supplier_unique_identifier = c.fk_product_id INNER JOIN shipping AS s ON s.fk_order_id = c.id INNER JOIN refunds_returns AS rr ON rr.fk_product_id = c.fk_product_id INNER JOIN customers_loyalty_program AS clp ON clp.associated_customer_reference_id = c.fk_user_id WHERE sp.official_supplier_business_name = 'Supplier1' GROUP BY sp.official_supplier_business_name, c.discount_applied, s.shipping_status, rr.refund_initiated_by, clp.exclusive_member_early_access"
+  },
+  {
+    "IncorrectQuery": "SELECT associated_customer_reference_id FROM customers_loyalty_program WHERE exclusive_member_early_access = 1",
+    "CorrectQuery": "SELECT associated_customer_reference_id FROM customers_loyalty_program WHERE exclusive_member_early_access = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT transactions_and_payments.total_transaction_amount, customerinfo.person_last_name FROM transactions_and_payments JOIN customerinfo ON transactions_and_payments.corresponding_customer_reference_identifier = customerinfo.security_answer_hash",
+    "CorrectQuery": "SELECT transactions_and_payments.total_transaction_amount, customerinfo.person_last_name FROM transactions_and_payments JOIN customerinfo ON transactions_and_payments.corresponding_customer_reference_identifier = customerinfo.person_customer_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM orders WHERE shipping_address_country = 'USA' AND events.event_type = 'delivery_confirmation'",
+    "CorrectQuery": "SELECT * FROM orders WHERE shipping_address_country = 'USA' AND order_id IN (SELECT order_id FROM events WHERE event_type = 'delivery_confirmation')"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM customers_loyalty_program WHERE loyalty_program_tier_level = 'Platinum' AND last_loyalty_tier_upgrade_date > '2023-01-01' AND last_loyalty_point_update_date < '2023-12-31' AND total_discount_amount_redeemed SUM > 1000",
+    "CorrectQuery": "SELECT COUNT(*) FROM customers_loyalty_program WHERE loyalty_program_tier_level = 'Platinum' AND last_loyalty_tier_upgrade_date > '2023-01-01' AND last_loyalty_point_update_date < '2023-12-31' AND total_discount_amount_redeemed > 1000"
+  },
+  {
+    "IncorrectQuery": "SELECT o.order_id, c.person_first_name, c.person_last_name, pr.submitted_review_star_rating, s.official_supplier_business_name, w.product_name FROM orders o INNER JOIN customerinfo c ON o.person_customer_id = c.person_customer_id OUTER JOIN product_reviews_and_ratings pr ON c.person_customer_id = pr.reviewing_customer_identifier INNER JOIN suppliers s ON pr.referenced_product_identifier = s.supplier_unique_identifier INNER JOIN wishlist w ON c.person_customer_id = w.fk_user_id WHERE w.price_at_addition > 100 AND pr.submitted_review_star_rating < 3 AND s.average_supplier_rating > 4.5 ORDER BY o.order_date DESC LIMIT 10;",
+    "CorrectQuery": "SELECT o.order_id, c.person_first_name, c.person_last_name, pr.submitted_review_star_rating, s.official_supplier_business_name, w.product_name FROM orders o INNER JOIN customerinfo c ON o.person_customer_id = c.person_customer_id LEFT JOIN product_reviews_and_ratings pr ON c.person_customer_id = pr.reviewing_customer_identifier INNER JOIN suppliers s ON pr.referenced_product_identifier = s.supplier_unique_identifier INNER JOIN wishlist w ON c.person_customer_id = w.fk_user_id WHERE w.price_at_addition > 100 AND pr.submitted_review_star_rating < 3 AND s.average_supplier_rating > 4.5 ORDER BY o.order_date DESC LIMIT 10;"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM events WHERE product_id = 123",
+    "CorrectQuery": "SELECT COUNT(*) FROM events WHERE order_item_id IN (SELECT order_item_id FROM order_items WHERE product_id = 123)"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(T2.corresponding_customer_reference_identifier) AS COUNT, T1.person_first_name AS first_name, T1.person_last_name AS last_name, T2.final_billed_amount AS total_spend, T4.campaign_name AS campaign_name, T5.standard_retail_price_including_tax AS product_price FROM customerinfo AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.person_customer_id = T2.corresponding_customer_reference_identifier INNER JOIN customers_loyalty_program AS T3 ON T1.person_customer_id = T3.associated_customer_reference_id INNER JOIN campaigns AS T4 ON T3.last_redemption_date = T4.start_date INNER JOIN products AS T5 ON T4.discount_code = T5.universal_product_code WHERE T3.exclusive_member_early_access = TRUE AND T4.campaign_status = 'active' GROUP BY T2.corresponding_customer_reference_identifier, T1.person_first_name, T1.person_last_name, T2.final_billed_amount, T4.campaign_name, T5.standard_retail_price_including_tax ORDER BY COUNT(T2.corresponding_customer_reference_identifier) DESC LIMIT 10 OFFSET 1;",
+    "CorrectQuery": "SELECT COUNT(DISTINCT T2.corresponding_customer_reference_identifier) AS unique_customers, T1.person_first_name AS first_name, T1.person_last_name AS last_name, SUM(T2.final_billed_amount) AS total_spend, T4.campaign_name AS campaign_name, T5.standard_retail_price_including_tax AS product_price FROM customerinfo AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.person_customer_id = T2.corresponding_customer_reference_identifier INNER JOIN customers_loyalty_program AS T3 ON T1.person_customer_id = T3.associated_customer_reference_id INNER JOIN campaigns AS T4 ON T3.last_redemption_date = T4.start_date INNER JOIN products AS T5 ON T4.discount_code = T5.universal_product_code WHERE T3.exclusive_member_early_access = TRUE AND T4.campaign_status = 'active' GROUP BY T1.person_first_name, T1.person_last_name, T4.campaign_name, T5.standard_retail_price_including_tax ORDER BY SUM(T2.final_billed_amount) DESC LIMIT 10 OFFSET 1;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM refunds_returns GROUP BY fk_user_id HAVING restocking_fee > AVG(restocking_fee) ORDER BY restocking_fee ASC LIMIT 10",
+    "CorrectQuery": "SELECT * FROM refunds_returns WHERE restocking_fee > (SELECT AVG(restocking_fee) FROM refunds_returns) ORDER BY restocking_fee ASC LIMIT 10"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.product_name, T2.price_at_addition, T3.start_date, T4.official_supplier_business_name FROM order_items AS T1 INNER JOIN wishlist AS T2 ON T2.fk_product_id = T1.order_id RIGHT JOIN campaigns AS T3 ON T3.campaign_id = T1.product_id INNER JOIN products AS T4 ON T4.unique_product_identifier = T1.product_id WHERE T1.price_per_unit > T2.price_at_addition AND T4.standard_retail_price_including_tax < T3.actual_spent ORDER BY T4.standard_retail_price_including_tax ASC",
+    "CorrectQuery": "SELECT T1.product_name, T2.price_at_addition, T3.start_date, T5.official_supplier_business_name FROM order_items AS T1 INNER JOIN wishlist AS T2 ON T2.fk_product_id = T1.product_id INNER JOIN campaigns AS T3 ON T3.campaign_id = T2.fk_product_id RIGHT JOIN products AS T4 ON T4.unique_product_identifier = T1.product_id INNER JOIN suppliers AS T5 ON T5.supplier_unique_identifier = T4.associated_supplier_reference_id WHERE T1.price_per_unit > T2.price_at_addition AND T4.standard_retail_price_including_tax < T3.actual_spent ORDER BY T4.standard_retail_price_including_tax ASC"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customerinfo WHERE person_customer_id = orders.order_id",
+    "CorrectQuery": "SELECT * FROM customerinfo WHERE person_customer_id IN (SELECT order_id FROM orders)"
+  },
+  {
+    "IncorrectQuery": "SELECT T4.total_amount + T5.total_number_of_products_supplied FROM orders AS T1 INNER JOIN campaigns AS T2 ON T1.campaign_id = T2.campaign_id INNER JOIN inventory AS T3 ON T3.referenced_product_id = T2.campaign_id INNER JOIN suppliers AS T4 ON T4.supplier_unique_identifier = T3.supplier_id INNER JOIN orders AS T5 ON T5.order_id = T4.supplier_unique_identifier WHERE T1.order_date = T5.shipping_date AND T2.total_reach = T3.safety_stock AND T4.total_number_of_products_supplied > T5.total_amount",
+    "CorrectQuery": "SELECT T1.total_amount + T3.total_number_of_products_supplied FROM orders AS T1 INNER JOIN campaigns AS T2 ON T1.campaign_id = T2.campaign_id INNER JOIN inventory AS T4 ON T4.referenced_product_id = T2.campaign_id INNER JOIN suppliers AS T3 ON T3.supplier_unique_identifier = T4.supplier_id WHERE T1.order_date = T1.shipping_date AND T2.total_reach = T4.safety_stock AND T3.total_number_of_products_supplied > T1.total_amount"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM cart JOIN products ON cart.fk_product_id = products.unique_product_identifier WHERE cart.cart_status = 'active' AND products.percentage_discount_applied > 0 JOIN inventory ON products.unique_product_identifier = inventory.referenced_product_id",
+    "CorrectQuery": "SELECT * FROM cart JOIN products ON cart.fk_product_id = products.unique_product_identifier WHERE cart.cart_status = 'active' AND products.percentage_discount_applied > 0 AND products.unique_product_identifier IN (SELECT referenced_product_id FROM inventory)"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM customers_loyalty_program AS clp INNER JOIN shipping AS s ON clp.associated_customer_reference_id = s.id INNER JOIN cart AS c ON c.fk_user_id = s.fk_order_id INNER JOIN refunds_returns AS rr ON rr.fk_user_id = c.fk_user_id INNER JOIN suppliers AS sp ON sp.supplier_unique_identifier = rr.fk_product_id WHERE clp.exclusive_member_early_access = true GROUP BY clp.exclusive_member_early_access, s.shipping_status, c discounts_applied, rr.refund_initiated_by, sp.official_supplier_business_name",
+    "CorrectQuery": "SELECT COUNT(*) FROM customers_loyalty_program AS clp INNER JOIN cart AS c ON clp.associated_customer_reference_id = c.fk_user_id INNER JOIN shipping AS s ON s.fk_order_id = c.id INNER JOIN refunds_returns AS rr ON rr.fk_user_id = c.fk_user_id INNER JOIN suppliers AS sp ON sp.supplier_unique_identifier = rr.fk_product_id WHERE clp.exclusive_member_early_access = true GROUP BY clp.exclusive_member_early_access, s.shipping_status, c.discount_applied, rr.refund_initiated_by, sp.official_supplier_business_name"
+  },
+  {
+    "IncorrectQuery": "SELECT p.product_display_name, pr.submitted_review_star_rating FROM product_reviews_and_ratings AS pr INNER JOIN products AS p ON pr.referenced_product_identifier = p.unique_product_identifier WHERE pr.submitted_review_star_rating > 5",
+    "CorrectQuery": "SELECT p.product_display_name, pr.submitted_review_star_rating FROM product_reviews_and_ratings AS pr INNER JOIN products AS p ON pr.referenced_product_identifier = p.unique_product_identifier WHERE pr.submitted_review_star_rating <= 5"
+  },
+  {
+    "IncorrectQuery": "SELECT e.unique_product_identifier, f.order_date FROM products AS e INNER JOIN cart AS a ON a.fk_product_id = e.unique_product_identifier INNER JOIN orders AS f ON a.fk_user_id = f.person_customer_id WHERE f.order_date = '2022-01-01' AND a.quantity = SUM(a.quantity);",
+    "CorrectQuery": "SELECT e.unique_product_identifier, f.order_date FROM products AS e INNER JOIN cart AS a ON a.fk_product_id = e.unique_product_identifier INNER JOIN orders AS f ON a.fk_user_id = f.person_customer_id WHERE f.order_date = '2022-01-01' AND a.quantity = (SELECT SUM(b.quantity) FROM cart AS b);"
+  },
+  {
+    "IncorrectQuery": "SELECT t.transaction_unique_identifier, e.click_count FROM transactions_and_payments t JOIN events e ON t.transaction_unique_identifier = e.order_id WHERE t.total_transaction_amount > 100 ORDER BY t.transaction_date_and_time DESC LIMIT 10)",
+    "CorrectQuery": "SELECT t.transaction_unique_identifier, e.click_count FROM transactions_and_payments t JOIN events e ON t.linked_order_reference_identifier = e.order_id WHERE t.total_transaction_amount > 100 ORDER BY t.transaction_date_and_time DESC LIMIT 10"
+  },
+  {
+    "IncorrectQuery": "SELECT c.fk_product_id, i.quantity, i.stock_threshold FROM cart c JOIN inventory i ON c.fk_product_id = i.product_id WHERE c.discount_applied > 5 AND i.stock_status = 'Out of Stock';",
+    "CorrectQuery": "SELECT c.fk_product_id, i.quantity, i.stock_threshold FROM cart c JOIN inventory i ON c.fk_product_id = i.referenced_product_id WHERE c.discount_applied > 5 AND i.stock_status = 'Out of Stock';"
+  },
+  {
+    "IncorrectQuery": "SELECT FIRST_VALUE(orders.total_amount) OVER (PARTITION BY orders.person_customer_id ORDER BY orders.order_date DESC) AS total_amount, string_agg(DISTINCT keywords_extracted_from_review SEPARATOR '|') AS keywords FROM transactions_and_payments FULL OUTER JOIN orders ON transactions_and_payments.linked_order_reference_identifier = orders.order_id FULL OUTER JOIN product_reviews_and_ratings ON product_reviews_and_ratings.reviewing_customer_identifier = orders.person_customer_id WHERE product_reviews_and_ratings.sentiment_analysis_score > 5 AND orders.order_status = 'cancelled' GROUP BY orders.order_id, orders.person_customer_id HAVING COUNT(DISTINCT transactions_and_payments.transaction_unique_identifier) > 1 ORDER BY orders.total_amount DESC LIMIT 10 OFFSET 5",
+    "CorrectQuery": "SELECT FIRST_VALUE(orders.total_amount) OVER (PARTITION BY orders.person_customer_id ORDER BY orders.order_date DESC) AS total_amount, string_agg(DISTINCT product_reviews_and_ratings.keywords_extracted_from_review, '|') AS keywords FROM orders FULL OUTER JOIN transactions_and_payments ON transactions_and_payments.linked_order_reference_identifier = orders.order_id FULL OUTER JOIN product_reviews_and_ratings ON product_reviews_and_ratings.reviewing_customer_identifier = orders.person_customer_id WHERE product_reviews_and_ratings.sentiment_analysis_score > 5 AND orders.order_status = 'cancelled' GROUP BY orders.order_id, orders.person_customer_id HAVING COUNT(DISTINCT transactions_and_payments.transaction_unique_identifier) > 1 ORDER BY orders.total_amount DESC LIMIT 10 OFFSET 5"
+  },
+  {
+    "IncorrectQuery": "SELECT customerinfo.person_income, customers_loyalty_program.exclusive_member_early_access FROM customers_loyalty_program JOIN customerinfo ON customers_loyalty_program.exclusive_member_early_access = customerinfo.person_date_of_birth",
+    "CorrectQuery": "SELECT customerinfo.person_income, customers_loyalty_program.exclusive_member_early_access FROM customers_loyalty_program JOIN customerinfo ON customers_loyalty_program.associated_customer_reference_id = customerinfo.person_customer_id"
+  },
+  {
+    "IncorrectQuery": "SELECT o.order_id, c.person_first_name, t.transaction_date_and_time, e.event_type, r.refund_amount FROM orders o JOIN customerinfo c ON o.person_customer_id = c.person_customer_id JOIN transactions_and_payments t ON o.order_id = t.linked_order_reference_identifier JOIN events e ON o.order_id = e.order_id AND e.event_type = 'order_placed' JOIN refunds_returns r ON o.order_id = r.fk_order_id WHERE o.order_status = 'delivered' AND t.transaction_status = 'success' AND e.device_platform = 'ios' AND r.status = 'processed' GROUP BY o.order_id, c.person_first_name, t.transaction_date_and_time, e.event_type, r.refund_amount HAVING SUM(r.refund_amount) > 1000 ORDER BY o.order_id LIMIT 10 OFFSET 5",
+    "CorrectQuery": "SELECT o.order_id, c.person_first_name, t.transaction_date_and_time, e.event_type, r.refund_amount FROM orders o JOIN customerinfo c ON o.person_customer_id = c.person_customer_id JOIN transactions_and_payments t ON o.order_id = t.linked_order_reference_identifier JOIN events e ON o.order_id = e.order_id AND e.event_type = 'order_placed' JOIN refunds_returns r ON o.order_id = r.fk_order_id WHERE o.order_status = 'delivered' AND t.transaction_status = 'success' AND e.device_platform = 'ios' AND r.status = 'processed' GROUP BY o.order_id, c.person_first_name, t.transaction_date_and_time, e.event_type, r.refund_amount HAVING SUM(r.refund_amount) > 1000 ORDER BY o.order_id LIMIT 10 OFFSET 5"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program clp INNER JOIN events e ON clp.last_loyalty_point_update_date = e.event_id",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program clp INNER JOIN events e ON clp.associated_customer_reference_id = e.person_customer_id"
+  },
+  {
+    "IncorrectQuery": "SELECT o.order_id, ci.person_first_name, ci.person_last_name, oi.product_name FROM orders o JOIN customerinfo ci ON o.customer_id = ci.person_customer_id JOIN order_items oi ON o.order_id = oi.order_id WHERE o.order_status = 'Delivered' AND oi.price_per_unit > 100 ORDER BY ci.person_first_name, ci.person_last_name",
+    "CorrectQuery": "SELECT o.order_id, ci.person_first_name, ci.person_last_name, oi.product_name FROM orders o JOIN customerinfo ci ON o.person_customer_id = ci.person_customer_id JOIN order_items oi ON o.order_id = oi.order_id WHERE o.order_status = 'Delivered' AND oi.price_per_unit > 100 ORDER BY ci.person_first_name, ci.person_last_name"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM inventory JOIN shipping ON inventory.id = shipping.tracking_number JOIN suppliers ON inventory.supplier_id = suppliers.supplier_tax_identification_number JOIN events ON suppliers.supplier_unique_identifier = events.person_customer_id WHERE events.event_type = 'Order Placed' AND inventory.stock_status = 'In Stock' AND suppliers.average_supplier_rating > 4",
+    "CorrectQuery": "SELECT * FROM inventory JOIN shipping ON inventory.id = shipping.fk_order_id JOIN suppliers ON inventory.supplier_id = suppliers.supplier_unique_identifier WHERE inventory.stock_status = 'In Stock' AND suppliers.average_supplier_rating > 4"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.participation_in_exclusive_beta_testing, T2.shipping_zipcode FROM customers_loyalty_program AS T1 INNER JOIN shipping AS T2 WHERE T1.associated_customer_reference_id = T2.fk_order_id AND T2.shipping_status = 'shipped'",
+    "CorrectQuery": "SELECT T1.participation_in_exclusive_beta_testing, T2.shipping_zipcode FROM customers_loyalty_program AS T1 INNER JOIN transactions_and_payments AS T3 ON T1.associated_customer_reference_id = T3.corresponding_customer_reference_identifier INNER JOIN shipping AS T2 ON T3.linked_order_reference_identifier = T2.fk_order_id WHERE T2.shipping_status = 'shipped'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM cart WHERE fk_user_id = customerinfo.person_income",
+    "CorrectQuery": "SELECT * FROM cart WHERE fk_user_id IN (SELECT person_customer_id FROM customerinfo WHERE person_income > 0)"
+  },
+  {
+    "IncorrectQuery": "SELECT campaign_name FROM campaigns ORDER BY campaign_id DESC AND campaign_name ASC",
+    "CorrectQuery": "SELECT campaign_name FROM campaigns ORDER BY campaign_id DESC, campaign_name ASC"
+  },
+  {
+    "IncorrectQuery": "SELECT product_reviews_and_ratings.review_unique_identifier FROM product_reviews_and_ratings JOIN transactions_and_payments ON product_reviews_and_ratings.review_unique_identifier = transactions_and_payments.transaction_unique_identifier WHERE product_reviews_and_ratings.submitted_review_star_rating = 'review_moderator_notes'",
+    "CorrectQuery": "SELECT product_reviews_and_ratings.review_unique_identifier FROM product_reviews_and_ratings JOIN transactions_and_payments ON product_reviews_and_ratings.reviewing_customer_identifier = transactions_and_payments.corresponding_customer_reference_identifier WHERE product_reviews_and_ratings.submitted_review_star_rating > 3"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM orders JOIN order_items ON orders.shipping_address_postalcode = order_items.warranty_period",
+    "CorrectQuery": "SELECT * FROM orders JOIN order_items ON orders.order_id = order_items.order_id"
+  },
+  {
+    "IncorrectQuery": "SELECT c.person_email, clp.accumulated_loyalty_points_balance FROM customers_loyalty_program clp JOIN customerinfo c ON clp.associated_customer_reference_id = c.person_customer_id WHERE clp.initial_enrollment_date > '2023-01-01' AND clp.loyalty_program_tier_level = 'Gold' AND clp.expiration_date_of_loyalty_points < NOW() AND w.expected_purchase_date IS NOT NULL",
+    "CorrectQuery": "SELECT c.person_email, clp.accumulated_loyalty_points_balance FROM customers_loyalty_program clp JOIN customerinfo c ON clp.associated_customer_reference_id = c.person_customer_id LEFT JOIN wishlist w ON c.person_customer_id = w.fk_user_id WHERE clp.initial_enrollment_date > '2023-01-01' AND clp.loyalty_program_tier_level = 'Gold' AND clp.expiration_date_of_loyalty_points < NOW()"
+  },
+  {
+    "IncorrectQuery": "SELECT total_transation_amount FROM transactions_and_payments WHERE refund_status = true",
+    "CorrectQuery": "SELECT total_transaction_amount FROM transactions_and_payments WHERE refund_status = true"
+  },
+  {
+    "IncorrectQuery": "SELECT customers_loyalty_program.loyalty_membership_unique_identifier FROM customers_loyalty_program INNER JOIN customerinfo ON customers_loyalty_program.associated_customer_reference_id = customerinfo.person_occupation WHERE customers_loyalty_program.exclusive_member_early_access = TRUE AND customerinfo.person_last_name = 'John' GROUP BY customers_loyalty_program.loyalty_membership_unique_identifier, customerinfo.person_first_name",
+    "CorrectQuery": "SELECT customers_loyalty_program.loyalty_membership_unique_identifier FROM customers_loyalty_program INNER JOIN customerinfo ON customers_loyalty_program.associated_customer_reference_id = customerinfo.person_customer_id WHERE customers_loyalty_program.exclusive_member_early_access = TRUE AND customerinfo.person_last_name = 'John' GROUP BY customers_loyalty_program.loyalty_membership_unique_identifier"
+  },
+  {
+    "IncorrectQuery": "SELECT c.person_first_name, c.person_last_name, t.total_transaction_amount, t.final_billed_amount, p.product_category_primary FROM customerinfo c INNER JOIN transactions_and_payments t ON c.person_customer_id = t.corresponding_customer_reference_identifier LEFT JOIN inventory i ON p.unique_product_identifier = i.referenced_product_id WHERE c.account_has_active_subscription = true AND t.transaction_date_and_time > '2022-01-01' AND p.perishable_product_flag = false ORDER BY t.transaction_date_and_time DESC LIMIT 100;",
+    "CorrectQuery": "SELECT c.person_first_name, c.person_last_name, t.total_transaction_amount, t.final_billed_amount, p.product_category_primary FROM customerinfo c INNER JOIN transactions_and_payments t ON c.person_customer_id = t.corresponding_customer_reference_identifier LEFT JOIN inventory i ON t.linked_order_reference_identifier = i.referenced_product_id LEFT JOIN products p ON i.referenced_product_id = p.unique_product_identifier WHERE c.account_has_active_subscription = true AND t.transaction_date_and_time > '2022-01-01' AND p.perishable_product_flag = false ORDER BY t.transaction_date_and_time DESC LIMIT 100;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customerinfo JOIN transactions_and_payments ON customerinfo.person_customer_id = transactions_and_payments.corresponding_customer_reference_identifier WHERE transactions_and_payments.transaction_status = 'COMPLETED' AND customerinfo.account_has_active_subscription = 1 OR customerinfo.person_loyalty_points > 1000",
+    "CorrectQuery": "SELECT * FROM customerinfo JOIN transactions_and_payments ON customerinfo.person_customer_id = transactions_and_payments.corresponding_customer_reference_identifier WHERE transactions_and_payments.transaction_status = 'COMPLETED' AND (customerinfo.account_has_active_subscription = TRUE OR customerinfo.person_loyalty_points > 1000)"
+  },
+  {
+    "IncorrectQuery": "SELECT products.promotional_discounted_price FROM refunds_returns JOIN products ON products.unique_product_identifier = refunds_returns",
+    "CorrectQuery": "SELECT products.promotional_discounted_price FROM refunds_returns JOIN products ON products.unique_product_identifier = refunds_returns.fk_product_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program c JOIN orders o ON c.exclusive_member_early_access = o.total_amount",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program c JOIN orders o ON c.associated_customer_reference_id = o.person_customer_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM cart WHERE fk_user_id = 'test';",
+    "CorrectQuery": "SELECT * FROM cart WHERE fk_user_id = 1;"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(lifetime_loyalty_points_earned) FROM customers_loyalty_program WHERE annual_loyalty_spending_threshold = '1000' JOIN refunds_returns ON fk_user_id = associated_customer_reference_id",
+    "CorrectQuery": "SELECT SUM(clp.lifetime_loyalty_points_earned) FROM customers_loyalty_program clp INNER JOIN refunds_returns rr ON clp.associated_customer_reference_id = rr.fk_user_id WHERE clp.annual_loyalty_spending_threshold = 1000"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.person_email FROM customerinfo T1 INNER JOIN refunds_returns T2 ON T2.fk_order_id = T1.account_card_expiry WHERE T2.return_type = 'refund' ORDER BY T1.person_date_of_birth",
+    "CorrectQuery": "SELECT T1.person_email FROM customerinfo T1 INNER JOIN refunds_returns T2 ON T2.fk_user_id = T1.person_customer_id WHERE T2.return_type = 'refund' ORDER BY T1.person_date_of_birth"
+  },
+  {
+    "IncorrectQuery": "SELECT oi.product_name, rr.customer_notes FROM order_items AS oi JOIN refunds_returns AS rr ON oi.product_id = rr.request_date JOIN product_reviews_and_ratings AS pr ON pr.submitted_review_star_rating = rr.reason WHERE oi.warranty_period = 'refund_initiated_by' AND rr.refund_amount = 'restocking_fee' AND pr.verification_status_of_reviewer = 'number_of_helpful_votes_received'",
+    "CorrectQuery": "SELECT oi.product_name, rr.customer_notes FROM order_items AS oi JOIN refunds_returns AS rr ON oi.product_id = rr.fk_product_id JOIN product_reviews_and_ratings AS pr ON pr.referenced_product_identifier = oi.product_id WHERE oi.warranty_period > 0 AND rr.refund_amount > 0 AND pr.verification_status_of_reviewer = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM product_reviews_and_ratings WHERE review_unique_identifier = review_unique_identifier INNER JOIN inventory ON product_reviews_and_ratings.referenced_product_identifier=inventory.referenced_product_id LIMIT 10",
+    "CorrectQuery": "SELECT * FROM product_reviews_and_ratings INNER JOIN inventory ON product_reviews_and_ratings.referenced_product_identifier=inventory.referenced_product_id WHERE product_reviews_and_ratings.review_unique_identifier=10 LIMIT 10"
+  },
+  {
+    "IncorrectQuery": "SELECT f.unique_product_identifier, e.order_date FROM products AS f INNER JOIN cart AS a ON a.fk_product_id = f.unique_product_identifier INNER JOIN orders AS e ON a.fk_user_id = e.person_customer_id WHERE e.order_date = '2019-01-01' AND e.total_amount = MIN(e.total_amount);",
+    "CorrectQuery": "SELECT f.unique_product_identifier, e.order_date FROM products AS f INNER JOIN cart AS a ON a.fk_product_id = f.unique_product_identifier INNER JOIN orders AS e ON a.fk_user_id = e.person_customer_id WHERE e.order_date = '2019-01-01' AND e.total_amount = (SELECT MIN(g.total_amount) FROM orders AS g);"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM wishlist WHERE fk_product_id = unique_product_identifier FROM products WHERE product_display_name = 'Apple iPhone'",
+    "CorrectQuery": "SELECT * FROM wishlist WHERE fk_product_id IN (SELECT unique_product_identifier FROM products WHERE product_display_name = 'Apple iPhone')"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program WHERE participation_in_exclusive_beta_testing = 'yes'",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program WHERE participation_in_exclusive_beta_testing = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT orders.order_id, customers_loyalty_program.accumulated_loyalty_points_balance FROM orders INNER JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id INNER JOIN customers_loyalty_program ON customerinfo.person_customer_id = customers_loyalty_program.associated_customer_reference_id LEFT JOIN inventory ON orders.order_id = inventory.referenced_product_id WHERE orders.order_status = 'delivered' AND customers_loyalty_program.eligible_for_special_promotions = TRUE AND inventory.expected_restock_date > NOW() GROUP BY orders.order_id, customers_loyalty_program.accumulated_loyalty_points_balance HAVING SUM(orders.total_amount) > 1000 AND AVG(customers_loyalty_program.accumulated_loyalty_points_balance) > 500 OR orders.payment_status = 'paid' MINUS SELECT orders.order_id FROM orders INNER JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id WHERE customerinfo.person_is_premium = FALSE",
+    "CorrectQuery": "SELECT o.order_id, clp.accumulated_loyalty_points_balance FROM orders o INNER JOIN customerinfo c ON o.person_customer_id = c.person_customer_id INNER JOIN customers_loyalty_program clp ON c.person_customer_id = clp.associated_customer_reference_id INNER JOIN inventory i ON o.order_id = i.id WHERE o.order_status = 'delivered' AND clp.eligible_for_special_promotions = TRUE AND i.expected_restock_date > NOW() GROUP BY o.order_id, clp.accumulated_loyalty_points_balance HAVING SUM(o.total_amount) > 1000 AND AVG(clp.accumulated_loyalty_points_balance) > 500 AND o.payment_status = 'paid'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program WHERE eligible_for_special_promotions = true AND participation_in_exclusive_beta_testing = (SELECT total_discount_amount_redeemed FROM customers_loyalty_program WHERE free_shipping_eligibility = false) JOIN product_reviews_and_ratings ON product_reviews_and_ratings.review_unique_identifier = customers_loyalty_program.loyalty_membership_unique_identifier JOIN campaigns ON campaigns.campaign_name = product_reviews_and_ratings.review_unique_identifier JOIN products ON products.unique_product_identifier = campaigns.campaign_id",
+    "CorrectQuery": "SELECT clp.* FROM customers_loyalty_program clp JOIN order_items oi ON oi.order_id = clp.associated_customer_reference_id JOIN product_reviews_and_ratings prr ON prr.referenced_product_identifier = oi.product_id JOIN campaigns c ON c.campaign_id = (SELECT campaign_id FROM campaigns WHERE campaign_name = (SELECT product_display_name FROM products WHERE unique_product_identifier = prr.referenced_product_identifier)) JOIN products p ON p.unique_product_identifier = oi.product_id WHERE clp.eligible_for_special_promotions = true AND clp.participation_in_exclusive_beta_testing = true"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM transactions_and_payments t JOIN campaigns c ON t.transaction_unique_identifier = c.campaign_name WHERE t.refund_status = 1 AND c.end_date = 'last year'",
+    "CorrectQuery": "SELECT * FROM transactions_and_payments t JOIN campaigns c ON t.linked_order_reference_identifier = c.campaign_id WHERE t.refund_status = TRUE AND c.end_date < CURRENT_DATE - INTERVAL '1 year'"
+  },
+  {
+    "IncorrectQuery": "SELECT fk_user_id FROM cart WHERE discount_applied IS '10%'",
+    "CorrectQuery": "SELECT fk_user_id FROM cart WHERE discount_applied = 0.10"
+  },
+  {
+    "IncorrectQuery": "SELECT textual_review_feedback FROM product_reviews_and_ratings WHERE review_unique_identifier = 'abc';",
+    "CorrectQuery": "SELECT textual_review_feedback FROM product_reviews_and_ratings WHERE review_unique_identifier = 12345;"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.referenced_product_identifier, T2.total_transaction_amount FROM product_reviews_and_ratings AS T1 JOIN transactions_and_payments AS T2 ON T1.review_unique_identifier = T2.linked_order_reference_identifier WHERE T1.verfication_status_of_reviewer = TRUE AND T2.refund_status = FALSE",
+    "CorrectQuery": "SELECT T1.referenced_product_identifier, T2.total_transaction_amount FROM product_reviews_and_ratings AS T1 JOIN transactions_and_payments AS T2 ON T1.reviewing_customer_identifier = T2.corresponding_customer_reference_identifier WHERE T1.verification_status_of_reviewer = TRUE AND T2.refund_status = FALSE"
+  },
+  {
+    "IncorrectQuery": "SELECT c.person_first_name, c.person_last_name, p.loyalty_membership_unique_identifier FROM customerinfo c JOIN customers_loyalty_program p ON c.person_customer_id = p.assosiated_customer_reference_id WHERE c.preferences_total_orders > 10 AND p.eligible_for_special_promotions = TRUE AND c.preferences_last_order_date > '2023-01-01'",
+    "CorrectQuery": "SELECT c.person_first_name, c.person_last_name, p.loyalty_membership_unique_identifier FROM customerinfo c JOIN customers_loyalty_program p ON c.person_customer_id = p.associated_customer_reference_id WHERE c.preferences_total_orders > 10 AND p.eligible_for_special_promotions = TRUE AND c.preferences_last_order_date > '2023-01-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM events e INNER JOIN customers_loyalty_program clp ON e.event_timestamp = clp.loyalty_membership_unique_identifier",
+    "CorrectQuery": "SELECT * FROM events e INNER JOIN customers_loyalty_program clp ON e.person_customer_id = clp.associated_customer_reference_id"
+  },
+  {
+    "IncorrectQuery": "SELECT product_display_name FROM refunds_returns INNER JOIN products ON fk_product_id = product_id",
+    "CorrectQuery": "SELECT product_display_name FROM refunds_returns INNER JOIN products ON fk_product_id = unique_product_identifier"
+  },
+  {
+    "IncorrectQuery": "SELECT o.order_id, ci.person_first_name, ci.person_last_name FROM orders o JOIN customerinfo ci ON o.customer_id = ci.person_customer_id WHERE o.total_amount > 100 AND ci.person_is_premium = TRUE",
+    "CorrectQuery": "SELECT o.order_id, ci.person_first_name, ci.person_last_name FROM orders o JOIN customerinfo ci ON o.person_customer_id = ci.person_customer_id WHERE o.total_amount > 100 AND ci.person_is_premium = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT c.campaign_name, SUM(o.total_amount) FROM campaigns c INNER JOIN orders o ON o.campaign_id = c.start_date GROUP BY c.campaign_name ORDER BY SUM(o.total_amount) DESC",
+    "CorrectQuery": "SELECT c.campaign_name, SUM(o.total_amount) FROM campaigns c INNER JOIN orders o ON o.campaign_id = c.campaign_id GROUP BY c.campaign_name ORDER BY SUM(o.total_amount) DESC"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM transactions_and_payments WHERE refund_status = true OR total_transaction_amount > 1000",
+    "CorrectQuery": "SELECT COUNT(*) FROM transactions_and_payments WHERE refund_status = true OR total_transaction_amount > 1000.00"
+  },
+  {
+    "IncorrectQuery": "SELECT order_item_id FROM events WHERE device_platform = 'mobile' AND event_type = 'purchase' GROUP BY device_platform",
+    "CorrectQuery": "SELECT order_item_id FROM events WHERE device_platform = 'mobile' AND event_type = 'purchase' GROUP BY order_item_id"
+  },
+  {
+    "IncorrectQuery": "SELECT events.event_timestamp, order_items.product_name, events.push_notification_clicked, events.device_platform, customers_loyalty_program.accumulated_loyalty_points_balance FROM order_items INNER JOIN events ON order_items.order_id = events.order_item_id INNER JOIN customers_loyalty_program ON events.person_customer_id = customers_loyalty_program.associated_customer_reference_id WHERE events.push_notification_clicked = 'true' AND events.device_platform = 'ios' AND events.event_type = 'order_placed' AND customers_loyalty_program.accumulated_loyalty_points_balance > 1000 GROUP BY events.event_timestamp, order_items.product_name, events.push_notification_clicked, events.device_platform, customers_loyalty_program.accumulated_loyalty_points_balance ORDER BY events.event_timestamp DESC LIMIT 10 OFFSET 5",
+    "CorrectQuery": "SELECT e.event_timestamp, oi.product_name, e.push_notification_clicked, e.device_platform, clp.accumulated_loyalty_points_balance FROM order_items oi INNER JOIN events e ON oi.order_item_id = e.order_item_id INNER JOIN customers_loyalty_program clp ON e.person_customer_id = clp.associated_customer_reference_id WHERE e.push_notification_clicked = TRUE AND e.device_platform = 'ios' AND e.event_type = 'order_placed' AND clp.accumulated_loyalty_points_balance > 1000 GROUP BY e.event_timestamp, oi.product_name, e.push_notification_clicked, e.device_platform, clp.accumulated_loyalty_points_balance ORDER BY e.event_timestamp DESC LIMIT 10 OFFSET 5"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM shipping s INNER JOIN orders o ON o.order_id = s.order_id WHERE o.total_amount = s.shipping_cost + o.tax_amount + (SELECT AVG(total_amount) FROM orders);",
+    "CorrectQuery": "SELECT * FROM shipping s INNER JOIN orders o ON o.order_id = s.fk_order_id WHERE o.total_amount = s.shipping_cost + o.tax_amount + (SELECT AVG(total_amount) FROM orders);"
+  },
+  {
+    "IncorrectQuery": "SELECT customers_loyalty_program.exclusive_member_early_access FROM customers_loyalty_program LEFT JOIN product_reviews_and_ratings ON product_reviews_and_ratings.referenced_product_identifier = inventory.referenced_product_id INNER JOIN orders ON orders.person_customer_id = customers_loyalty_program.associated_customer_reference_id INNER JOIN events ON events.person_customer_id = customers_loyalty_program.associated_customer_reference_id LEFT JOIN inventory ON inventory.referenced_product_id = orders.order_item_id WHERE inventory.quantity < inventory.stock_threshold",
+    "CorrectQuery": "SELECT customers_loyalty_program.exclusive_member_early_access FROM customers_loyalty_program LEFT JOIN orders ON orders.person_customer_id = customers_loyalty_program.associated_customer_reference_id LEFT JOIN inventory ON inventory.referenced_product_id = orders.order_id LEFT JOIN events ON events.person_customer_id = customers_loyalty_program.associated_customer_reference_id WHERE inventory.quantity < inventory.stock_threshold"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program WHERE loyalty_membership_unique_identifier IN ('123', 'abc')",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program WHERE loyalty_membership_unique_identifier IN (123)"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program WHERE loyalty_program_tier_level > 5",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program WHERE loyalty_program_tier_level = '5'"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.order_id FROM orders AS T1 INNER JOIN refunds_returns AS T2 ON T1.order_id = T2.fk_product_id INNER JOIN suppliers AS T3 ON T2.fk_user_id = T3.primary_contact_phone_number WHERE T1.order_date = T2.request_date AND T1.shipping_date = T2.processed_date AND T3.supplier_tax_identification_number = T1.shipping_address_postalcode",
+    "CorrectQuery": "SELECT T1.order_id FROM orders AS T1 INNER JOIN refunds_returns AS T2 ON T1.order_id = T2.fk_order_id INNER JOIN suppliers AS T3 ON T2.fk_product_id = T3.total_number_of_products_supplied WHERE T1.order_date > '2020-01-01' AND T1.shipping_date > T2.request_date AND T3.supplier_tax_identification_number = ''"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.accumulated_loyalty_points_balance FROM customers_loyalty_program AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.associated_customer_reference_id = T2.transaction_unique_identifier INNER JOIN cart AS T3 ON T3.fk_product_id = T2.linked_order_reference_identifier INNER JOIN campaigns AS T4 ON T4.start_date = T3.last_activity_timestamp INNER JOIN events AS T5 ON T5.event_timestamp = T4.end_date WHERE T1.participation_in_exclusive_beta_testing = TRUE AND T2.chargeback_request_status = TRUE AND T3.wishlist_flag = TRUE AND T4.campaign_type = 'email' AND T5.device_platform = 'web'",
+    "CorrectQuery": "SELECT T1.accumulated_loyalty_points_balance FROM customers_loyalty_program AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.associated_customer_reference_id = T2.corresponding_customer_reference_identifier INNER JOIN cart AS T3 ON T3.fk_user_id = T1.associated_customer_reference_id INNER JOIN campaigns AS T4 ON T4.campaign_id = (SELECT campaign_id FROM campaigns ORDER BY random() LIMIT 1) INNER JOIN events AS T5 ON T5.person_customer_id = T1.associated_customer_reference_id WHERE T1.participation_in_exclusive_beta_testing = TRUE AND T2.chargeback_request_status = TRUE AND T3.wishlist_flag = TRUE AND T4.campaign_type = 'email' AND T5.device_platform = 'web'"
+  },
+  {
+    "IncorrectQuery": "SELECT order_id FROM orders WHERE shipping_address_city = 'New York' AND shipping_address_postalcode = 10001",
+    "CorrectQuery": "SELECT order_id FROM orders WHERE shipping_address_city = 'New York' AND shipping_address_postalcode = '10001'"
+  },
+  {
+    "IncorrectQuery": "SELECT o.order_id , c.start_date FROM order_items AS oi INNER JOIN orders AS o ON o.order_item_id = oi.order_item_id INNER JOIN campaigns AS c ON c.order_id = o.order_id;",
+    "CorrectQuery": "SELECT o.order_id , c.start_date FROM order_items AS oi INNER JOIN orders AS o ON o.order_id = oi.order_id INNER JOIN campaigns AS c ON c.campaign_id = o.campaign_id;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM inventory WHERE stock_threshold = 5 INNER JOIN product_reviews_and_ratings ON inventory.referenced_product_id=product_reviews_and_ratings.referenced_product_identifier WHERE product_reviews_and_ratings.review_unique_identifier = 10",
+    "CorrectQuery": "SELECT * FROM inventory INNER JOIN product_reviews_and_ratings ON inventory.referenced_product_id=product_reviews_and_ratings.referenced_product_identifier WHERE inventory.stock_threshold = 5 AND product_reviews_and_ratings.review_unique_identifier = 10"
+  },
+  {
+    "IncorrectQuery": "SELECT products.product_display_name, wishlist.priority_level FROM products JOIN wishlist ON products.unique_product_identifier = wishlist.fk_product_id WHERE products.net_weight_in_kilograms = 'yellow' AND wishlist.expected_purchase_date > '2022-01-01'",
+    "CorrectQuery": "SELECT products.product_display_name, wishlist.priority_level FROM products JOIN wishlist ON products.unique_product_identifier = wishlist.fk_product_id WHERE products.net_weight_in_kilograms > 0 AND wishlist.expected_purchase_date > '2022-01-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT total_transaction_amount FROM transactions_and_payments WHERE corresponding_customer_reference_identifier = 123 AND loyalty_program_tier_level = 'Platinum';",
+    "CorrectQuery": "SELECT total_transaction_amount FROM transactions_and_payments WHERE corresponding_customer_reference_identifier = 123; SELECT loyalty_program_tier_level FROM customers_loyalty_program WHERE associated_customer_reference_id = 123;"
+  },
+  {
+    "IncorrectQuery": "SELECT id, product_name FROM inventory WHERE stock_status = 'In Stock';",
+    "CorrectQuery": "SELECT id, product_name FROM wishlist WHERE stock_status_at_addition = TRUE;"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(T2.unique_product_identifier) AS product_count, SUM(T2.promotional_discounted_price) AS total_product_price, T1.associated_customer_reference_id AS customer_id FROM customers_loyalty_program AS T1 INNER JOIN wishlist AS T2 ON T2.fk_product_id = T1.accumulated_loyalty_points_balance INNER JOIN shipping AS T3 ON T3.fk_order_id = T2.id WHERE T1.exclusive_member_early_access = TRUE AND T2.priority_level = 'high' GROUP BY T1.associated_customer_reference_id;",
+    "CorrectQuery": "SELECT COUNT(T2.fk_product_id) AS product_count, SUM(T3.promotional_discounted_price) AS total_product_price, T1.associated_customer_reference_id AS customer_id FROM customers_loyalty_program AS T1 INNER JOIN wishlist AS T2 ON T2.fk_user_id = T1.associated_customer_reference_id INNER JOIN products AS T3 ON T3.unique_product_identifier = T2.fk_product_id WHERE T1.exclusive_member_early_access = TRUE AND T2.priority_level = 'high' GROUP BY T1.associated_customer_reference_id;"
+  },
+  {
+    "IncorrectQuery": "SELECT loyalty_membership_unique_identifier FROM customers_loyalty_program WHERE free_shipping_eligibility = TRUE INNER JOIN transactions_and_payments ON customers_loyalty_program.associated_customer_reference_id = transactions_and_payments.corresponding_customer_reference_identifier WHERE transactions_and_payments.refund_status = TRUE AND customers_loyalty_program.exclusive_member_early_access = FALSE FULL OUTER JOIN orders ON transactions_and_payments.linked_order_reference_identifier = orders.order_id WHERE orders.order_status = 'delivered' UNION SELECT orders.order_id FROM orders WHERE orders.order_date < '2022-01-01'",
+    "CorrectQuery": "SELECT clp.loyalty_membership_unique_identifier FROM customers_loyalty_program clp INNER JOIN transactions_and_payments tap ON clp.associated_customer_reference_id = tap.corresponding_customer_reference_identifier INNER JOIN orders o ON tap.linked_order_reference_identifier = o.order_id WHERE clp.free_shipping_eligibility = TRUE AND tap.refund_status = TRUE AND clp.exclusive_member_early_access = FALSE AND o.order_status = 'delivered'"
+  },
+  {
+    "IncorrectQuery": "SELECT cart.id, order_items.order_id, campaigns.campaign_name FROM cart INNER JOIN order_items ON cart.fk_user_id = order_items.product_id INNER JOIN campaigns ON order_items.order_id = campaigns.budget INNER JOIN customers_loyalty_program ON cart.fk_user_id = customers_loyalty_program.associated_customer_reference_id INNER JOIN refunds_returns ON cart.id = refunds_returns.fk_order_id WHERE cart_status = 'gift' AND campaigns.start_date = '2020-01-01' GROUP BY cart.id, order_items.order_id, campaigns.campaign_name HAVING SUM(campaigns.budget) > 10000 ORDER BY cart.id DESC LIMIT 100 OFFSET 50",
+    "CorrectQuery": "SELECT cart.id, order_items.order_id, campaigns.campaign_name FROM cart INNER JOIN order_items ON cart.fk_product_id = order_items.product_id INNER JOIN campaigns ON campaigns.campaign_id = order_items.order_id INNER JOIN customers_loyalty_program ON cart.fk_user_id = customers_loyalty_program.associated_customer_reference_id INNER JOIN refunds_returns ON cart.id = refunds_returns.fk_order_id WHERE cart.cart_status = 'gift' AND campaigns.start_date = '2020-01-01' GROUP BY cart.id, order_items.order_id, campaigns.campaign_name HAVING SUM(campaigns.budget) > 10000 ORDER BY cart.id DESC LIMIT 100 OFFSET 50"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customerinfo WHERE securitytwo_factor_enabled = 0 OR preferences_newsletter_subscription = 'on';",
+    "CorrectQuery": "SELECT * FROM customerinfo WHERE securitytwo_factor_enabled = FALSE OR preferences_newsletter_subscription = TRUE;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM cart c INNER JOIN inventory i ON c.fk_product_id = i.id WHERE c.quantity = i.quantity",
+    "CorrectQuery": "SELECT * FROM cart c INNER JOIN inventory i ON c.fk_product_id = i.referenced_product_id WHERE c.quantity = i.quantity"
+  },
+  {
+    "IncorrectQuery": "SELECT c.person_first_name, c.person_last_name, t.total_transaction_amount FROM customerinfo c JOIN transactions_and_payments t ON c.person_customer_id = t.corresponding_customer_reference_id WHERE c.person_is_premium = true AND t.is_transaction_fraudulent IS TRUE AND e.event_type = 'Purchase' AND e.review_rating > 4",
+    "CorrectQuery": "SELECT c.person_first_name, c.person_last_name, t.total_transaction_amount FROM customerinfo c JOIN transactions_and_payments t ON c.person_customer_id = t.corresponding_customer_reference_identifier JOIN events e ON c.person_customer_id = e.person_customer_id WHERE c.person_is_premium = true AND t.is_transaction_fraudulent IS TRUE AND e.event_type = 'Purchase' AND e.review_rating > 4"
+  },
+  {
+    "IncorrectQuery": "SELECT p.product_display_name, o.total_amount, s.shipped_date, c.accumulated_loyalty_points_balance, r.textual_review_feedback FROM products AS p JOIN orders AS o ON p.unique_product_identifier = o.order_id JOIN shipping AS s ON o.order_id = s.fk_order_id JOIN customers_loyalty_program AS c ON o.person_customer_id = c.associated_customer_reference_id JOIN product_reviews_and_ratings AS r ON p.unique_product_identifier = r.review_unique_identifier WHERE s.shipping_status = 'delivered' AND o.order_status = 'completed' AND p.active_product_status = true AND r.review_approval_moderation_status = 'approved';",
+    "CorrectQuery": "SELECT p.product_display_name, o.total_amount, s.shipped_date, c.accumulated_loyalty_points_balance, r.textual_review_feedback FROM products AS p JOIN product_reviews_and_ratings AS r ON p.unique_product_identifier = r.referenced_product_identifier JOIN orders AS o ON r.reviewing_customer_identifier = o.person_customer_id JOIN shipping AS s ON o.order_id = s.fk_order_id JOIN customers_loyalty_program AS c ON o.person_customer_id = c.associated_customer_reference_id WHERE s.shipping_status = 'delivered' AND o.order_status = 'completed' AND p.active_product_status = true AND r.review_approval_moderation_status = 'approved';"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(c.associated_customer_reference_id) AS customers, o.order_date FROM customers_loyalty_program c INNER JOIN orders o ON o.person_customer_id = c.associated_customer_reference_id INNER JOIN shipping s ON s.fk_order_id = o.order_id INNER JOIN suppliers sp ON sp.supplier_unique_identifier = o.campaign_id GROUP BY s.shipping_status, o.order_date, o.order_status, o.payment_status, o.payment_method, o.tracking_number, o.shipping_address_street, o.shipping_address_city, o.shipping_address_state, o.shipping_address_country, o.shipping_address_postalcode, sp.supplier_country_of_operation, sp.official_supplier_business_name, sp.registered_business_address, sp.primary_contact_person_name, sp.primary_contact_phone_number, sp.primary_contact_email_address, sp.preferred_payment_terms_description, sp.supplier_tax_identification_number, sp.total_number_of_products_supplied, sp.average_supplier_rating, c.participation_in_exclusive_beta_testing, c.exclusive_member_early_access, c.loyalty_membership_unique_identifier, c.accumulated_loyalty_points_balance, c.last_loyalty_point_update_date, c.eligible_for_special_promotions, c.initial_enrollment_date, c.last_loyalty_tier_upgrade_date, c.next_loyalty_tier_evaluation_date, c.expiration_date_of_loyalty_points, c.total_discount_amount_redeemed, c.lifetime_loyalty_points_earned, c.lifetime_loyalty_points_redeemed, c.customer_birthday_special_discount, c.personalized_product_recommendations->'personalized_product_recommendations', c.annual_loyalty_spending_threshold, c.free_shipping_eligibility, c.anniversary_reward_voucher_status, c.customer_feedback_engagement_score, c.bonus_loyalty_points_last_month, c.referral_bonus_points_earned, c.referred_friends_count, c.extra_reward_credits_from_surveys, c.special_event_invitation_status, c.redemption_activity_log->'redemption_activity_log', c.last_redemption_date, c.loyalty_program_tier_level, c.exclusive_coupon_codes_assigned, c.preferred_communication_channel",
+    "CorrectQuery": "SELECT COUNT(c.associated_customer_reference_id) AS customers, o.order_date FROM customers_loyalty_program c INNER JOIN orders o ON o.person_customer_id = c.associated_customer_reference_id INNER JOIN shipping s ON s.fk_order_id = o.order_id GROUP BY o.order_date"
+  },
+  {
+    "IncorrectQuery": "SELECT order_id FROM orders GROUP BY tax_amount HAVING order_id = 'abc'",
+    "CorrectQuery": "SELECT order_id FROM orders GROUP BY order_id, tax_amount"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM products INNER JOIN product_reviews_and_ratings ON products.unique_product_identifier = product_reviews_and_ratings.referenced_product_identifier WHERE product_reviews_and_ratings.sentiment_analysis_score = 'great'",
+    "CorrectQuery": "SELECT * FROM products INNER JOIN product_reviews_and_ratings ON products.unique_product_identifier = product_reviews_and_ratings.referenced_product_identifier WHERE product_reviews_and_ratings.sentiment_analysis_score > 0.5"
+  },
+  {
+    "IncorrectQuery": "SELECT transaction_unique_identifier FROM transactions_and_payments ORDER BY total_number_of_products_supplied DESC",
+    "CorrectQuery": "SELECT transaction_unique_identifier FROM transactions_and_payments ORDER BY total_transaction_amount DESC"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.person_customer_id, T3.order_item_id FROM customerinfo AS T1 CROSS JOIN (SELECT person_customer_id FROM orders) AS T2 INNER JOIN (SELECT order_item_id FROM order_items) AS T3 ON T3.order_id = T2.order_id WHERE T2.person_customer_id = T1.person_customer_id",
+    "CorrectQuery": "SELECT T1.person_customer_id, T3.order_item_id FROM customerinfo AS T1 INNER JOIN orders AS T2 ON T2.person_customer_id = T1.person_customer_id INNER JOIN order_items AS T3 ON T3.order_id = T2.order_id"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(p.unique_product_identifier) FROM products p GROUP BY s.supplier_country_of_operation HAVING SUM(s.total_number_of_products_supplied) > 1000 JOIN suppliers s ON p.associated_supplier_reference_id = s.supplier_unique_identifier",
+    "CorrectQuery": "SELECT COUNT(p.unique_product_identifier) FROM products p JOIN suppliers s ON p.associated_supplier_reference_id = s.supplier_unique_identifier GROUP BY s.supplier_country_of_operation HAVING SUM(s.total_number_of_products_supplied) > 1000"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.product_display_name, T2.standard_warranty_duration, T3.fk_user_id FROM refunds_returns AS T1 INNER JOIN products AS T2 ON T2.unique_product_identifier = T1.fk_product_id INNER JOIN cart AS T3 ON T3.id = T1.fk_order_id WHERE T1.refund_initiated_by = 'customer' AND T2.featured_product_flag = TRUE AND T3.is_gift = TRUE GROUP BY T1.product_display_name, T2.standard_warranty_duration, T3.fk_user_id ORDER BY T1.product_display_name LIMIT 5;",
+    "CorrectQuery": "SELECT T2.product_display_name, T2.standard_warranty_duration, T3.fk_user_id FROM refunds_returns AS T1 INNER JOIN products AS T2 ON T2.unique_product_identifier = T1.fk_product_id INNER JOIN cart AS T3 ON T3.id = T1.fk_order_id WHERE T1.refund_initiated_by = 'customer' AND T2.featured_product_flag = TRUE AND T3.is_gift = TRUE GROUP BY T2.product_display_name, T2.standard_warranty_duration, T3.fk_user_id ORDER BY T2.product_display_name LIMIT 5;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM events JOIN order_items ON events.order_id = order_items.order_item_id WHERE events.event_type = 'purchase' AND order_items.quantity = 'string';",
+    "CorrectQuery": "SELECT * FROM events JOIN order_items ON events.order_id = order_items.order_id WHERE events.event_type = 'purchase' AND order_items.quantity > 0;"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) AS total_orders FROM orders WHERE shipping_date > 12-02-2024 AND o.person_customer_id = 5",
+    "CorrectQuery": "SELECT COUNT(*) AS total_orders FROM orders o WHERE o.shipping_date > '2024-02-12' AND o.person_customer_id = 5"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.associated_customer_reference_id, T2.transaction_unique_identifier, T3.referenced_product_id FROM customers_loyalty_program AS T1 INNER JOIN transaction_and_payments AS T2 ON T1.associated_customer_reference_id = T2.corresponding_customer_reference_identifier WHERE T1.accumulated_loyalty_points_balance = '10' OR T2.refund_amount = '10' INNER JOIN inventory AS T3 ON T2.transaction_unique_identifier = T3.id",
+    "CorrectQuery": "SELECT T1.associated_customer_reference_id, T2.corresponding_customer_reference_identifier, T3.referenced_product_id FROM customers_loyalty_program AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.associated_customer_reference_id = T2.corresponding_customer_reference_identifier INNER JOIN inventory AS T3 ON T2.linked_order_reference_identifier = T3.referenced_product_id WHERE T1.accumulated_loyalty_points_balance = 10 OR T2.refund_amount = 10"
+  },
+  {
+    "IncorrectQuery": "SELECT loyalty_membership_unique_identifier FROM customers_loyalty_program WHERE initial_enrollment_date = '2022-01-01' GROUP BY associated_customer_reference_id HAVING COUNT(*) > 1 ORDER BY loyalty_membership_unique_identifier",
+    "CorrectQuery": "SELECT loyalty_membership_unique_identifier FROM customers_loyalty_program WHERE initial_enrollment_date = '2022-01-01' GROUP BY loyalty_membership_unique_identifier, associated_customer_reference_id HAVING COUNT(*) > 1 ORDER BY loyalty_membership_unique_identifier"
+  },
+  {
+    "IncorrectQuery": "SELECT c.loyalty_membership_unique_identifier, o.order_id, o.total_amount FROM customers_loyalty_program c JOIN orders o ON c.loyalty_membership_unique_identifier = o.person_customer_id WHERE c.accumulated_loyalty_points_balance > 1000 AND c.eligible_for_special_promotions = true AND o.order_date > '2023-01-01' AND o.campaign_id IN (SELECT campaign_id FROM campaigns WHERE actual_spent > budget) AND r.refund_amount > 50 JOIN refunds_returns r ON o.order_id = r.fk_order_id WHERE r.status = 'completed';",
+    "CorrectQuery": "SELECT c.loyalty_membership_unique_identifier, o.order_id, o.total_amount FROM customers_loyalty_program c JOIN orders o ON c.associated_customer_reference_id = o.person_customer_id JOIN refunds_returns r ON o.order_id = r.fk_order_id WHERE c.accumulated_loyalty_points_balance > 1000 AND c.eligible_for_special_promotions = true AND o.order_date > '2023-01-01' AND o.campaign_id IN (SELECT campaign_id FROM campaigns WHERE actual_spent > budget) AND r.refund_amount > 50 AND r.status = 'completed';"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM cart JOIN products JOIN inventory WHERE cart.id = products.unique_product_identifier AND products.unique_product_identifier = inventory.referenced_product_id AND products.perishable_product_flag = TRUE AND inventory.quantity > 10 AND (SELECT COUNT(*) FROM cart) < 50 AND cart.shipping_fee > 10 AND products.standard_retail_price_including_tax > 50 AND products.featured_product_flag = TRUE",
+    "CorrectQuery": "SELECT COUNT(*) FROM cart INNER JOIN products ON cart.fk_product_id = products.unique_product_identifier INNER JOIN inventory ON products.unique_product_identifier = inventory.referenced_product_id WHERE products.perishable_product_flag = TRUE AND inventory.quantity > 10 AND cart.shipping_fee > 10 AND products.standard_retail_price_including_tax > 50 AND products.featured_product_flag = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT shipping_address_country FROM wishlist NATURAL JOIN customerinfo NATURAL JOIN shipping NATURAL JOIN orders NATURAL JOIN orders NATURAL JOIN shipping WHERE shipping_status = 'pending' OR shipping_status = shipping_status",
+    "CorrectQuery": "SELECT shipping_address_country FROM wishlist NATURAL JOIN customerinfo JOIN shipping ON customerinfo.person_customer_id = shipping.fk_order_id JOIN orders ON shipping.fk_order_id = orders.order_id WHERE shipping_status = 'pending' OR shipping_status = 'pending'"
+  },
+  {
+    "IncorrectQuery": "SELECT count(*) FROM events WHERE event_type = 'purchase' AND device_os = 'iOS' AND price_at_addition > 100;",
+    "CorrectQuery": "SELECT count(*) FROM events WHERE event_type = 'purchase' AND device_os = 'iOS';"
+  },
+  {
+    "IncorrectQuery": "SELECT submitted_review_star_rating FROM product_reviews_and_ratings WHERE return_request_status = 123;",
+    "CorrectQuery": "SELECT submitted_review_star_rating FROM product_reviews_and_ratings WHERE return_request_status = TRUE;"
+  },
+  {
+    "IncorrectQuery": "SELECT AVG(total_price) FROM order_items WHERE Item_weight > 0, order_item_id > 10",
+    "CorrectQuery": "SELECT AVG(total_price) FROM order_items WHERE item_weight > 0 AND order_item_id > 10"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM cart WHERE total_price > 100 AND NOT discounted_total_price",
+    "CorrectQuery": "SELECT * FROM cart WHERE total_price > 100 AND discounted_total_price IS NULL"
+  },
+  {
+    "IncorrectQuery": "SELECT orders.total_amount, transactions_and_payments.transaction_date_and_time FROM orders JOIN transactions_and_payments ON orders.order_id = transactions_and_payments.linked_order_reference_identified WHERE orders.order_status = 'Completed' AND transactions_and_payments.transaction_status = 'Successful';",
+    "CorrectQuery": "SELECT orders.total_amount, transactions_and_payments.transaction_date_and_time FROM orders JOIN transactions_and_payments ON orders.order_id = transactions_and_payments.linked_order_reference_identifier WHERE orders.order_status = 'Completed' AND transactions_and_payments.transaction_status = 'Successful';"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM events WHERE event_timestamp BETWEEN '2022-01-01' AND '2022-01-31'",
+    "CorrectQuery": "SELECT * FROM events WHERE event_timestamp::date BETWEEN '2022-01-01' AND '2022-01-31'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM product_reviews_and_ratings JOIN customerinfo ON product_reviews_and_ratings.review_unique_identifier = customerinfo.person_customer_id WHERE reviewing_customer_identifier = 'string' AND person_first_name = 'string'",
+    "CorrectQuery": "SELECT * FROM product_reviews_and_ratings JOIN customerinfo ON product_reviews_and_ratings.reviewing_customer_identifier = customerinfo.person_customer_id WHERE product_reviews_and_ratings.reviewing_customer_identifier = 123 AND customerinfo.person_first_name = 'John'"
+  },
+  {
+    "IncorrectQuery": "SELECT o.order_id, c.person_first_name, clp.exclusive_member_early_access FROM orders o JOIN customerinfo c ON o.customer_id = c.person_customer_id JOIN customers_loyalty_program clp ON c.person_customer_id = clp.associated_customer_reference_id WHERE o.created_at > NOW() - INTERVAL '1 year' AND clp.loyalty_program_tier_level = 'Gold' AND o.discount_applied > clp.lifetime_loyalty_points_redeemed",
+    "CorrectQuery": "SELECT o.order_id, c.person_first_name, clp.exclusive_member_early_access FROM orders o JOIN customerinfo c ON o.person_customer_id = c.person_customer_id JOIN customers_loyalty_program clp ON c.person_customer_id = clp.associated_customer_reference_id WHERE o.created_at > NOW() - INTERVAL '1 year' AND clp.loyalty_program_tier_level = 'Gold' AND o.discount_applied > clp.lifetime_loyalty_points_redeemed"
+  },
+  {
+    "IncorrectQuery": "SELECT customerinfo.person_first_name, inventory.quantity, shipping.shipped_date FROM customerinfo INNER JOIN refunds_returns ON customerinfo.person_customer_id = refunds_returns.fk_user_id INNER JOIN inventory ON inventory.id = shipping.fk_order_id INNER JOIN shipping ON shipping.fk_order_id = refunds_returns.fk_order_id WHERE inventory.quantity > 10 AND shipping.shipped_date > '2020-01-01'",
+    "CorrectQuery": "SELECT customerinfo.person_first_name, inventory.quantity, shipping.shipped_date FROM customerinfo INNER JOIN refunds_returns ON customerinfo.person_customer_id = refunds_returns.fk_user_id INNER JOIN shipping ON shipping.fk_order_id = refunds_returns.fk_order_id INNER JOIN inventory ON inventory.id = refunds_returns.fk_product_id WHERE inventory.quantity > 10 AND shipping.shipped_date > '2020-01-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT billing_address_zip_code FROM transactions_and_payments WHERE transaction_status = 'successfull'",
+    "CorrectQuery": "SELECT billing_address_zip_code FROM transactions_and_payments WHERE transaction_status = 'successful'"
+  },
+  {
+    "IncorrectQuery": "SELECT orders.order_id FROM orders WHERE delivery_date IS NOT NULL LEFT JOIN orders ON orders.person_customer_id = orders.person_customer_id INNER JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id LEFT JOIN campaigns ON orders.campaign_id = campaigns.campaign_id INNER JOIN campaigns ON campaigns.campaign_id = campaigns.campaign_id RIGHT JOIN orders ON orders.campaign_id = campaigns.campaign_id FULL JOIN events ON orders.order_id = events.order_id WHERE events.event_type = 'purchase' EXCEPT SELECT orders.order_id FROM orders WHERE delivery_date IS NOT NULL INNER JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id FULL JOIN campaigns ON orders.campaign_id = campaigns.campaign_id",
+    "CorrectQuery": "SELECT DISTINCT orders.order_id FROM orders INNER JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id INNER JOIN campaigns ON orders.campaign_id = campaigns.campaign_id INNER JOIN events ON orders.order_id = events.order_id WHERE orders.delivery_date IS NOT NULL AND events.event_type = 'purchase'"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(DISTINCT o.order_id) FROM orders AS o INNER JOIN events AS e ON (o.order_id = e.order_id) WHERE o.order_status = 'Delivered' AND e.event_type = 'Purchase' GROUP BY e.person_customer_id HAVING SUM(e.cart_value) > 1000 ORDER BY e.event_timestamp DESC LIMIT 10",
+    "CorrectQuery": "SELECT COUNT(DISTINCT o.order_id) FROM orders AS o INNER JOIN events AS e ON (o.order_id = e.order_id) WHERE o.order_status = 'Delivered' AND e.event_type = 'Purchase' GROUP BY e.person_customer_id ORDER BY SUM(e.cart_value) DESC LIMIT 10"
+  },
+  {
+    "IncorrectQuery": "SELECT average_supplier_rating FROM suppliers WHERE total_number_of_products_supplied = 'five'",
+    "CorrectQuery": "SELECT average_supplier_rating FROM suppliers WHERE total_number_of_products_supplied = 5"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM product_reviews_and_ratings AS prr JOIN customerinfo AS ci ON prr.referenced_product_identifier = ci.person_customer_id JOIN cart AS c ON c.fk_product_id = prr.review_unique_identifier WHERE prr.submitted_review_star_rating > ci.person_income AND c.total_price < prr.sentiment_analysis_score ORDER BY prr.length_of_review_in_characters LIMIT prr.previous_product_purchases_count OFFSET prr.number_of_helpful_votes_received",
+    "CorrectQuery": "SELECT * FROM product_reviews_and_ratings AS prr JOIN customerinfo AS ci ON prr.reviewing_customer_identifier = ci.person_customer_id JOIN cart AS c ON c.fk_user_id = ci.person_customer_id WHERE prr.submitted_review_star_rating > 0 AND c.total_price > 0 ORDER BY prr.length_of_review_in_characters LIMIT 100 OFFSET 0"
+  },
+  {
+    "IncorrectQuery": "SELECT pr.textual_review_feedback, i.supplier_id, c.recommended_products FROM product_reviews_and_ratings AS pr JOIN inventory AS i ON pr.review_unique_identifier = i.last_updated JOIN cart AS c ON c.fk_user_id = pr.reviewing_customer_identifier WHERE pr.sentiment_analysis_score = 'previous_product_purchases_count' AND i.purchase_price = 'shelf_life' AND c.discount_applied = 'tax_amount'",
+    "CorrectQuery": "SELECT pr.textual_review_feedback, i.supplier_id, c.recommended_products FROM product_reviews_and_ratings AS pr JOIN inventory AS i ON pr.referenced_product_identifier = i.referenced_product_id JOIN cart AS c ON c.fk_product_id = i.referenced_product_id WHERE pr.sentiment_analysis_score > 0 AND i.purchase_price > 0 AND c.discount_applied > 0"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM events WHERE device_platform = 'Android' AND country_of_product_origin = 'China'",
+    "CorrectQuery": "SELECT COUNT(*) FROM events WHERE device_platform = 'Android' AND location_country = 'China'"
+  },
+  {
+    "IncorrectQuery": "SELECT c.campaign_name FROM campaigns c INNER JOIN product_reviews_and_ratings prar ON c.campaign_id = prar.review_unique_identifier WHERE prar.submitted_review_star_rating > 'average'",
+    "CorrectQuery": "SELECT c.campaign_name FROM campaigns c INNER JOIN product_reviews_and_ratings prar ON c.campaign_id = prar.review_unique_identifier WHERE prar.submitted_review_star_rating > 3"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM refunds_returns AS rr INNER JOIN shipping AS s ON rr.fk_user_id = s.id INNER JOIN cart AS c ON c.fk_user_id = s.fk_order_id INNER JOIN customers_loyalty_program AS clp ON clp.associated_customer_reference_id = c.id INNER JOIN suppliers AS sp ON sp.supplier_unique_identifier = clp.exclusive_member_early_access WHERE rr.refund_initiated_by = 'Customer' GROUP BY rr.refund_initiated_by, s.shipping_status, c.discount_applied, clp.exclusive_member_early_access, sp.official_supplier_business_name",
+    "CorrectQuery": "SELECT COUNT(*) FROM refunds_returns AS rr INNER JOIN shipping AS s ON rr.fk_order_id = s.id INNER JOIN cart AS c ON c.id = s.fk_order_id INNER JOIN customers_loyalty_program AS clp ON clp.associated_customer_reference_id = c.fk_user_id INNER JOIN suppliers AS sp ON sp.supplier_unique_identifier = rr.fk_product_id WHERE rr.refund_initiated_by = 'Customer' GROUP BY rr.refund_initiated_by, s.shipping_status, c.discount_applied, clp.exclusive_member_early_access, sp.official_supplier_business_name"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customerinfo AS c INNER JOIN orders AS o ON c.person_customer_id = o.person_customer_id WHERE o.shipping_date IS 12-02-2024",
+    "CorrectQuery": "SELECT * FROM customerinfo AS c INNER JOIN orders AS o ON c.person_customer_id = o.person_customer_id WHERE o.shipping_date = '2024-02-12'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM orders o JOIN order_items oi ON o.order_id = oi.order_item_id JOIN shipping s ON o.order_id = s.fk_order_id WHERE oi.price_per_unit > 100 AND o.order_status = 'pending' AND s.shipping_status = 'delivered' GROUP BY o.order_id HAVING SUM(oi.total_price) > 1000 LIMIT 10 OFFSET 5 UNION ALL SELECT * FROM orders o2 JOIN order_items oi2 ON o2.order_id = oi2.order_item_id WHERE oi2.price_per_unit < 50 AND o2.order_status = 'cancelled' INTERSECT SELECT * FROM shipping s2 JOIN orders o3 ON s2.fk_order_id = o3.order_id WHERE s2.shipping_cost > 20 AND o3.order_status = 'shipped'",
+    "CorrectQuery": "SELECT o.order_id, oi.order_item_id, s.id FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN shipping s ON o.order_id = s.fk_order_id WHERE oi.price_per_unit > 100 AND o.order_status = 'pending' AND s.shipping_status = 'delivered' GROUP BY o.order_id, oi.order_item_id, s.id HAVING SUM(oi.total_price) > 1000 LIMIT 10 OFFSET 5"
+  },
+  {
+    "IncorrectQuery": "SELECT t.transaction_date_and_time, s.supplier_country_of_operation, i.stock_status, r.request_date FROM transactions_and_payments t JOIN suppliers s ON t.supplier_unique_identifier = s.supplier_unique_identifier JOIN inventory i ON s.supplier_unique_identifier = i.supplier_id JOIN refunds_returns r ON t.transaction_unique_identifier = r.fk_order_id WHERE t.transaction_date_and_time > '2023-01-01' AND s.supplier_country_of_operation = 'USA' AND i.stock_status = 'In Stock' AND r.status = 'Processed' ORDER BY t.transaction_date_and_time DESC LIMIT 100;",
+    "CorrectQuery": "SELECT t.transaction_date_and_time, s.supplier_country_of_operation, i.stock_status, r.request_date FROM transactions_and_payments t JOIN inventory i ON t.linked_order_reference_identifier = i.referenced_product_id JOIN suppliers s ON i.supplier_id = s.supplier_unique_identifier JOIN refunds_returns r ON t.transaction_unique_identifier = r.fk_order_id WHERE t.transaction_date_and_time > '2023-01-01' AND s.supplier_country_of_operation = 'USA' AND i.stock_status = 'In Stock' AND r.status = 'Processed' ORDER BY t.transaction_date_and_time DESC LIMIT 100;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM product_reviews_and_ratings WHERE review_unique_identifier = 'string';",
+    "CorrectQuery": "SELECT * FROM product_reviews_and_ratings WHERE review_unique_identifier = 123;"
+  },
+  {
+    "IncorrectQuery": "SELECT DISTINCT su.official_supplier_business_name, ca.campaign_name FROM suppliers su LEFT JOIN campaign ca ON su.supplier_unique_identifier = ca.campaign_id WHERE ca.start_date BETWEEN su.registered_business_address AND su.supplier_country_of_operation",
+    "CorrectQuery": "SELECT DISTINCT su.official_supplier_business_name, ca.campaign_name FROM suppliers su LEFT JOIN campaigns ca ON su.supplier_unique_identifier = ca.campaign_id WHERE ca.start_date IS NOT NULL"
+  },
+  {
+    "IncorrectQuery": "SELECT shipping_address_street FROM wishlist NATURAL JOIN customerinfo NATURAL JOIN shipping NATURAL JOIN orders WHERE shipping_status = 'shipped' shipping_address_street LIKE 'Street%'",
+    "CorrectQuery": "SELECT shipping_address_street FROM wishlist NATURAL JOIN customerinfo JOIN shipping ON customerinfo.person_customer_id = shipping.fk_order_id JOIN orders ON shipping.fk_order_id = orders.order_id WHERE shipping_status = 'shipped' AND shipping_address_street LIKE 'Street%'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM orders WHERE order_status = customerinfo.person_email",
+    "CorrectQuery": "SELECT * FROM orders WHERE order_status = 'pending' AND person_customer_id IN (SELECT person_customer_id FROM customerinfo WHERE person_email IS NOT NULL)"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program WHERE participation_in_exclusive_beta_testing = TRUE AND last_loyalty_point_update_date > '2022-01-01' JOIN orders ON customers_loyalty_program.associated_customer_reference_id = orders.person_customer_id WHERE orders.order_date > '2021-01-01' GROUP BY customers_loyalty_program.loyalty_membership_unique_identifier, orders.order_id ORDER BY customers_loyalty_program.accumulated_loyalty_points_balance DESC LIMIT 10",
+    "CorrectQuery": "SELECT clp.loyalty_membership_unique_identifier, clp.accumulated_loyalty_points_balance, o.order_id FROM customers_loyalty_program clp JOIN orders o ON clp.associated_customer_reference_id = o.person_customer_id WHERE clp.participation_in_exclusive_beta_testing = TRUE AND clp.last_loyalty_point_update_date > '2022-01-01' AND o.order_date > '2021-01-01' GROUP BY clp.loyalty_membership_unique_identifier, o.order_id ORDER BY clp.accumulated_loyalty_points_balance DESC LIMIT 10"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(DISTINCT person_customer_id) AS customer_count FROM customerinfo WHERE SUM(preferences_total_orders) > 10",
+    "CorrectQuery": "SELECT COUNT(DISTINCT person_customer_id) AS customer_count FROM customerinfo WHERE preferences_total_orders > 10"
+  },
+  {
+    "IncorrectQuery": "SELECT address_city FROM customerinfo INNER JOIN transactions_and_payments ON customerinfo.person_customer_id = transactions_and_payments.corresponding_customer_reference_identifier GROUP BY address_city=address_state;",
+    "CorrectQuery": "SELECT address_city FROM customerinfo INNER JOIN transactions_and_payments ON customerinfo.person_customer_id = transactions_and_payments.corresponding_customer_reference_identifier GROUP BY address_city, address_state;"
+  },
+  {
+    "IncorrectQuery": "SELECT MAX(total_transaction_amount) AS max_amount FROM transactions_and_payments WHERE total_transaction_amount > 100 GROUP BY",
+    "CorrectQuery": "SELECT MAX(total_transaction_amount) AS max_amount FROM transactions_and_payments WHERE total_transaction_amount > 100"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.fk_product_id FROM wishlist AS T1 WHERE T1.fk_product_id NOT IN ()",
+    "CorrectQuery": "SELECT T1.fk_product_id FROM wishlist AS T1 WHERE T1.fk_product_id NOT IN (SELECT T2.product_id FROM order_items AS T2)"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM transactions_and_payments WHERE total_transaction_amount = 'string';",
+    "CorrectQuery": "SELECT * FROM transactions_and_payments WHERE total_transaction_amount = 123.45;"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.review_unique_identifier, T2.product_display_name FROM product_reviews_and_ratings AS T1 INNER JOIN products AS T2 ON T1.referenced_product_identifier = T2.unique_product_identifier WHERE T1.submitted_review_star_rating > 5 AND T2.standard_retail_price_including_tax > T1.length_of_review_in_characters",
+    "CorrectQuery": "SELECT T1.review_unique_identifier, T2.product_display_name FROM product_reviews_and_ratings AS T1 INNER JOIN products AS T2 ON T1.referenced_product_identifier = T2.unique_product_identifier WHERE T1.submitted_review_star_rating > 5 AND T2.standard_retail_price_including_tax > T1.length_of_review_in_characters"
+  },
+  {
+    "IncorrectQuery": "SELECT customerinfo.person_first_name, products.product_display_name, shipping.shipping_cost FROM customerinfo INNER JOIN events ON customerinfo.person_customer_id = events.person_customer_id INNER JOIN cart ON events.person_customer_id = cart.fk_user_id INNER JOIN products ON cart.fk_product_id = products.unique_product_identifier INNER JOIN shipping ON cart.id = shipping.fk_order_id WHERE customerinfo.person_last_name = 'Smith' AND events.event_type = 'purchase' AND products.product_category_primary = 'Electronics' AND shipping.shipping_status = 'shipped' GROUP BY customerinfo.person_first_name, products.product_display_name, shipping.shipping_cost HAVING SUM(cart.total_price) > 1000 ORDER BY customerinfo.person_first_name LIMIT 10 OFFSET 5",
+    "CorrectQuery": "SELECT c.person_first_name, p.product_display_name, s.shipping_cost FROM customerinfo c INNER JOIN events e ON c.person_customer_id = e.person_customer_id INNER JOIN cart ct ON e.person_customer_id = ct.fk_user_id INNER JOIN products p ON ct.fk_product_id = p.unique_product_identifier INNER JOIN shipping s ON ct.id = s.fk_order_id WHERE c.person_last_name = 'Smith' AND e.event_type = 'purchase' AND p.product_category_primary = 'Electronics' AND s.shipping_status = 'shipped' GROUP BY c.person_first_name, p.product_display_name, s.shipping_cost HAVING SUM(ct.total_price) > 1000 ORDER BY c.person_first_name LIMIT 10 OFFSET 5"
+  },
+  {
+    "IncorrectQuery": "SELECT s.official_supplier_business_name, c.price_per_unit, w.expected_purchase_date, o.shipped_date FROM suppliers AS s JOIN order_items AS o ON s.supplier_unique_identifier = o.product_id JOIN cart AS c ON c.fk_product_id = o.order_id JOIN wishlist AS w ON w.fk_product_id = s.supplier_unique_identifier WHERE s.supplier_country_of_operation = 'USA' AND c.is_gift = TRUE AND w.reminder_set = TRUE AND o.is_replacement_available = FALSE ORDER BY s.average_supplier_rating DESC LIMIT 10;",
+    "CorrectQuery": "SELECT s.official_supplier_business_name, o.price_per_unit, w.expected_purchase_date, sh.shipped_date FROM suppliers AS s JOIN order_items AS o ON s.supplier_unique_identifier = o.product_id JOIN cart AS c ON c.fk_product_id = o.product_id JOIN wishlist AS w ON w.fk_product_id = o.product_id JOIN shipping AS sh ON sh.fk_order_id = o.order_id WHERE s.supplier_country_of_operation = 'USA' AND c.is_gift = TRUE AND w.reminder_set = TRUE AND o.is_replacement_available = FALSE ORDER BY s.average_supplier_rating DESC LIMIT 10;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM campaigns JOIN inventory ON campaigns.campaign_id = inventory.stock_status",
+    "CorrectQuery": "SELECT * FROM campaigns JOIN products ON campaigns.campaign_name = products.product_display_name JOIN inventory ON products.unique_product_identifier = inventory.referenced_product_id"
+  },
+  {
+    "IncorrectQuery": "SELECT su.supplier_country_of_operation FROM suppliers su INNER JOIN product_reviews_and_ratings prar ON su.supplier_unique_identifier = prar.referenced_product_identifier WHERE prar.submitted_review_star_rating = 'good'",
+    "CorrectQuery": "SELECT su.supplier_country_of_operation FROM suppliers su INNER JOIN product_reviews_and_ratings prar ON su.supplier_unique_identifier = prar.referenced_product_identifier WHERE prar.submitted_review_star_rating > 3"
+  },
+  {
+    "IncorrectQuery": "SELECT order_id FROM orders WHERE order_status = TRUE",
+    "CorrectQuery": "SELECT order_id FROM orders WHERE order_status = 'status_value'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM order_items WHERE is_returnable = true AND order_id = (SELECT review_unique_identifier FROM product_reviews_and_ratings WHERE submitted_review_star_rating > 4) JOIN customers_loyalty_program ON customers_loyalty_program.associated_customer_reference_id = order_items.order_id JOIN campaigns ON campaigns.campaign_id = customers_loyalty_program.exclusive_member_early_access JOIN products ON products.unique_product_identifier = campaigns.campaign_name",
+    "CorrectQuery": "SELECT oi.*, clp.*, c.*, p.* FROM order_items oi JOIN customers_loyalty_program clp ON oi.order_id = clp.associated_customer_reference_id JOIN campaigns c ON c.campaign_id = (SELECT campaign_id FROM campaigns WHERE campaign_name = (SELECT product_display_name FROM products WHERE unique_product_identifier = (SELECT referenced_product_identifier FROM product_reviews_and_ratings WHERE submitted_review_star_rating > 4))) JOIN products p ON p.unique_product_identifier = oi.product_id WHERE oi.is_returnable = true"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM wishlist WHERE fk_user_id IN (SELECT associated_customer_reference_id FROM customers_loyalty_program WHERE eligible_for_special_promotions = true) LIMIT 10 LIMIT 10 OFFSET 5;",
+    "CorrectQuery": "SELECT * FROM wishlist WHERE fk_user_id IN (SELECT associated_customer_reference_id FROM customers_loyalty_program WHERE eligible_for_special_promotions = true) LIMIT 10 OFFSET 5;"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.transaction_date_and_time, T2.review_rating FROM transactions_and_payments AS T1 JOIN events AS T2 ON T1.transaction_unique_identifier = T2.order_id WHERE T1.fraud_detection_flagged = TRUE AND T2.review_rating > 4",
+    "CorrectQuery": "SELECT T1.transaction_date_and_time, T2.review_rating FROM transactions_and_payments AS T1 JOIN events AS T2 ON T1.linked_order_reference_identifier = T2.order_id WHERE T1.fraud_detection_flagged = TRUE AND T2.review_rating > 4"
+  },
+  {
+    "IncorrectQuery": "SELECT customerinfo.person_first_name, product_reviews_and_ratings.submitted_review_star_rating FROM customerinfo JOIN product_reviews_and_ratings ON customerinfo.person_customer_id = product_reviews_and_ratings.reviewing_customer_identifier WHERE customerinfo.person_is_premium = TRUE AND product_reviews_and_ratings.submitted_review_star_rating >= 5 AND product_reviews_and_ratings.customer_review_submission_date > 2023-10-01",
+    "CorrectQuery": "SELECT customerinfo.person_first_name, product_reviews_and_ratings.submitted_review_star_rating FROM customerinfo JOIN product_reviews_and_ratings ON customerinfo.person_customer_id = product_reviews_and_ratings.reviewing_customer_identifier WHERE customerinfo.person_is_premium = TRUE AND product_reviews_and_ratings.submitted_review_star_rating >= 5 AND product_reviews_and_ratings.customer_review_submission_date > '2023-10-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM inventory JOIN orders ON inventory.expected_restock_date = orders.order_status",
+    "CorrectQuery": "SELECT * FROM inventory JOIN orders ON inventory.referenced_product_id = orders.campaign_id"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(total_price) FROM events",
+    "CorrectQuery": "SELECT SUM(total_price) FROM order_items"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM suppliers s INNER JOIN wishlist w ON s.supplier_unique_identifier = w.category",
+    "CorrectQuery": "SELECT * FROM suppliers s INNER JOIN product_reviews_and_ratings prr ON s.supplier_unique_identifier = prr.referenced_product_identifier INNER JOIN wishlist w ON prr.referenced_product_identifier = w.fk_product_id"
+  },
+  {
+    "IncorrectQuery": "SELECT c.loyalty_membership_unique_identifier, t.total_transaction_amount FROM customers_loyalty_program c INNER JOIN transactions_and_payments t ON c.associated_customer_reference_id = t.corresponding_customer_reference_identitier WHERE c.exclusive_member_early_access = TRUE AND t.promotional_offer_applied = TRUE",
+    "CorrectQuery": "SELECT c.loyalty_membership_unique_identifier, t.total_transaction_amount FROM customers_loyalty_program c INNER JOIN transactions_and_payments t ON c.associated_customer_reference_id = t.corresponding_customer_reference_identifier WHERE c.exclusive_member_early_access = TRUE AND t.promotional_offer_applied = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT customerinfo.person_first_name, customerinfo.person_last_name, orders.order_id, orders.order_date, product_reviews_and_ratings.sentiment_analysis_score FROM customerinfo JOIN orders ON customerinfo.person_customer_id = orders.person_customer_id JOIN product_reviews_and_ratings ON customerinfo.person_customer_id = product_reviews_and_ratings.reviewing_customer_identifier WHERE orders.order_status = 'shipped' AND product_reviews_and_ratings.submitted_review_star_rating = 5 JOIN wishlist ON customerinfo.person_customer_id = wishlist.fk_user_id WHERE wishlist.wishlist_status = 'active'",
+    "CorrectQuery": "SELECT customerinfo.person_first_name, customerinfo.person_last_name, orders.order_id, orders.order_date, product_reviews_and_ratings.sentiment_analysis_score FROM customerinfo JOIN orders ON customerinfo.person_customer_id = orders.person_customer_id JOIN product_reviews_and_ratings ON customerinfo.person_customer_id = product_reviews_and_ratings.reviewing_customer_identifier JOIN wishlist ON customerinfo.person_customer_id = wishlist.fk_user_id WHERE orders.order_status = 'shipped' AND product_reviews_and_ratings.submitted_review_star_rating = 5 AND wishlist.wishlist_status = 'active'"
+  },
+  {
+    "IncorrectQuery": "SELECT customerinfo.person_first_name, customers_loyalty_program.accumulated_loyalty_points_balance FROM customers_loyalty_program JOIN customerinfo ON customers_loyalty_program.associated_customer_reference_id = customerinfo.security_question",
+    "CorrectQuery": "SELECT customerinfo.person_first_name, customers_loyalty_program.accumulated_loyalty_points_balance FROM customers_loyalty_program JOIN customerinfo ON customers_loyalty_program.associated_customer_reference_id = customerinfo.person_customer_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM suppliers WHERE average_supplier_rating = 'four';",
+    "CorrectQuery": "SELECT * FROM suppliers WHERE average_supplier_rating = 4.0;"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM shipping WHERE shipping_status = 'delivered' AND carrier = order_status",
+    "CorrectQuery": "SELECT COUNT(*) FROM shipping sh INNER JOIN orders o ON sh.fk_order_id = o.order_id WHERE sh.shipping_status = 'delivered' AND o.order_status = 'delivered'"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM orders JOIN shipping ON fk_order_id = order_date WHERE shipping_status = 'shipped' GROUP BY shipping_status shipping_cost",
+    "CorrectQuery": "SELECT COUNT(*) FROM orders JOIN shipping ON shipping.fk_order_id = orders.order_id WHERE shipping_status = 'shipped' GROUP BY shipping_status, shipping_cost"
+  },
+  {
+    "IncorrectQuery": "SELECT total_transaction_amount FROM transactions_and_payments WHERE transaction_date_and_time > '2023-01-01 AND transaction_status = 'Completed'",
+    "CorrectQuery": "SELECT total_transaction_amount FROM transactions_and_payments WHERE transaction_date_and_time > '2023-01-01' AND transaction_status = 'Completed'"
+  },
+  {
+    "IncorrectQuery": "SELECT campaign_name FROM campaigns WHERE campaign_status != 'active' OR target_audience = 'new customers';",
+    "CorrectQuery": "SELECT campaign_name FROM campaigns WHERE campaign_status != 'active' AND target_audience = 'new customers';"
+  },
+  {
+    "IncorrectQuery": "SELECT order_items.product_name, cart.total_price FROM order_items JOIN cart ON order_items.order_id = cart.session_id WHERE order_items.total_price > 500 AND cart.quantity < 0",
+    "CorrectQuery": "SELECT order_items.product_name, cart.total_price FROM order_items JOIN cart ON order_items.product_id = cart.fk_product_id WHERE order_items.total_price > 500 AND cart.quantity > 0"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program WHERE participation_in_exclusive_beta_testing = TRUE AND customers_loyalty_program.associated_customer_reference_id = customerinfo.person_customer_id AND customerinfo.person_date_of_birth = '2022-01-01' INNER JOIN customerinfo ON customers_loyalty_program.associated_customer_reference_id = customerinfo.person_customer_id INNER JOIN wishlist ON customerinfo.person_customer_id = wishlist.fk_user_id INNER JOIN suppliers ON wishlist.fk_product_id = suppliers.total_number_of_products_supplied",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program INNER JOIN customerinfo ON customers_loyalty_program.associated_customer_reference_id = customerinfo.person_customer_id INNER JOIN wishlist ON customerinfo.person_customer_id = wishlist.fk_user_id WHERE customers_loyalty_program.participation_in_exclusive_beta_testing = TRUE AND customerinfo.person_date_of_birth = '2022-01-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT campaign_name FROM campaigns INNER JOIN customerinfo ON customerinfo.person_customer_id = campaigns.campaign_id WHERE person_is_premium = TRUE GROUP BY campaign_name LIMIT campaign_name;",
+    "CorrectQuery": "SELECT campaign_name FROM campaigns INNER JOIN customerinfo ON customerinfo.person_customer_id = campaigns.campaign_id WHERE person_is_premium = TRUE GROUP BY campaign_name LIMIT 1;"
+  },
+  {
+    "IncorrectQuery": "SELECT clp.associated_customer_reference_id, e.event_id, c.fk_product_id, w.priority_level FROM customers_loyalty_program AS clp INNER JOIN events AS e ON clp.accumulated_loyalty_points_balance = e.time_spent_seconds INNER JOIN cart AS c ON e.device_platform = c.fk_product_id INNER JOIN wishlist AS w ON c.fk_user_id = w.wishlist_status",
+    "CorrectQuery": "SELECT clp.associated_customer_reference_id, e.event_id, c.fk_product_id, w.priority_level FROM customers_loyalty_program AS clp INNER JOIN events AS e ON clp.associated_customer_reference_id = e.person_customer_id INNER JOIN cart AS c ON e.order_id = c.id INNER JOIN wishlist AS w ON c.fk_user_id = w.fk_user_id"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(review_unique_identifier) FROM product_reviews_and_ratings WHERE submitted_review_star_rating > 5 JOIN order_items ON order_items.order_item_id = product_reviews_and_ratings.review_unique_identifier JOIN customers_loyalty_program ON customers_loyalty_program.loyalty_membership_unique_identifier = order_items.quantity JOIN campaigns ON campaigns.campaign_id = customers_loyalty_program.eligible_for_special_promotions JOIN products ON products.standard_retail_price_including_tax = campaigns.budget",
+    "CorrectQuery": "SELECT COUNT(prr.review_unique_identifier) FROM product_reviews_and_ratings prr JOIN products p ON p.unique_product_identifier = prr.referenced_product_identifier JOIN order_items oi ON oi.product_id = p.unique_product_identifier JOIN customers_loyalty_program clp ON clp.associated_customer_reference_id = oi.order_id JOIN campaigns c ON c.campaign_id = (SELECT campaign_id FROM campaigns WHERE campaign_name = (SELECT product_display_name FROM products WHERE unique_product_identifier = p.unique_product_identifier)) WHERE prr.submitted_review_star_rating > 4"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.fk_user_id, T2.linked_order_reference_identifier, T3.warehouse_location FROM wishlist AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.fk_user_id = T2.corresponding_customer_reference_identifier WHERE T2.applied_discount_value = '2' AND T1.reminder_set = 'True' INNER JOIN inventory AS T3 ON T2.transaction_unique_identifier = T3.referenced_product_id",
+    "CorrectQuery": "SELECT T1.fk_user_id, T2.corresponding_customer_reference_identifier, T3.warehouse_location FROM wishlist AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.fk_user_id = T2.corresponding_customer_reference_identifier INNER JOIN inventory AS T3 ON T2.linked_order_reference_identifier = T3.referenced_product_id WHERE T2.applied_discount_value = 2 AND T1.reminder_set = True"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(address_city) FROM customerinfo INNER JOIN refunds_returns ON customerinfo.person_customer_id = refunds_returns.fk_user_id AND refunds_returns.is_refundable = IS NULL;",
+    "CorrectQuery": "SELECT COUNT(address_city) FROM customerinfo INNER JOIN refunds_returns ON customerinfo.person_customer_id = refunds_returns.fk_user_id AND refunds_returns.is_refundable = TRUE;"
+  },
+  {
+    "IncorrectQuery": "SELECT prar.review_unique_identifier FROM product_reviews_and_ratings prar INNER JOIN refunds_returns rr ON prar.referenced_product_identifier = rr.fk_product_id WHERE rr.status = 'approved' AND prar.submitted_review_star_rating = 'good'",
+    "CorrectQuery": "SELECT prar.review_unique_identifier FROM product_reviews_and_ratings prar INNER JOIN refunds_returns rr ON prar.referenced_product_identifier = rr.fk_product_id WHERE rr.status = 'approved' AND prar.submitted_review_star_rating > 3"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program AS clp INNER JOIN events AS e ON clp.associated_customer_reference_id = e.person_customer_id INNER JOIN refunds_returns AS rr ON e.order_id = rr.fk_order_id INNER JOIN products AS p ON rr.fk_product_id = p.unique_product_identifier INNER JOIN suppliers AS s ON p.associated_supplier_reference_id = s.supplier_unique_identifier WHERE clp.exclusive_member_early_access = TRUE AND s.official_supplier_business_name = 'Supplier1' AND p.product_display_name = 'ProductX' AND rr.refund_amount > 0 AND e.event_type = 'order' GROUP BY clp.associated_customer_reference_id, e.event_id, rr.id, p.unique_product_identifier, s.supplier_unique_identifier HAVING SUM(rr.refund_amount) > 1000",
+    "CorrectQuery": "SELECT clp.associated_customer_reference_id, e.event_id, rr.id, p.unique_product_identifier, s.supplier_unique_identifier FROM customers_loyalty_program AS clp INNER JOIN events AS e ON clp.associated_customer_reference_id = e.person_customer_id INNER JOIN refunds_returns AS rr ON e.order_id = rr.fk_order_id INNER JOIN products AS p ON rr.fk_product_id = p.unique_product_identifier INNER JOIN suppliers AS s ON p.associated_supplier_reference_id = s.supplier_unique_identifier WHERE clp.exclusive_member_early_access = TRUE AND s.official_supplier_business_name = 'Supplier1' AND p.product_display_name = 'ProductX' AND rr.refund_amount > 0 AND e.event_type = 'order' GROUP BY clp.associated_customer_reference_id, e.event_id, rr.id, p.unique_product_identifier, s.supplier_unique_identifier HAVING SUM(rr.refund_amount) > 1000"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(total_discount_amount_redeemed) FROM customers_loyalty_program AS clp INNER JOIN customerinfo AS ci ON clp.personalized_product_recommendations = ci.security_account_status",
+    "CorrectQuery": "SELECT SUM(total_discount_amount_redeemed) FROM customers_loyalty_program AS clp INNER JOIN customerinfo AS ci ON clp.associated_customer_reference_id = ci.person_customer_id"
+  },
+  {
+    "IncorrectQuery": "SELECT c.loyalty_membership_unique_identifier, p.review_unique_identifier, i.quantity, cr.id, w.id FROM customers_loyalty_program c JOIN product_reviews_and_ratings p ON c.loyalty_membership_unique_identifier = p.reviewing_customer_identifier JOIN inventory i ON p.review_unique_identifier = i.id JOIN cart cr ON i.supplier_id = cr.fk_user_id JOIN wishlist w ON c.fk_user_id = w.fk_user_id WHERE c.expiration_date_of_loyalty_points > NOW() AND p.flagged_as_inappropriate = false AND i.stock_status = 'available' AND cr.cart_status = 'active' AND w.wishlist_status = 'active'",
+    "CorrectQuery": "SELECT c.loyalty_membership_unique_identifier, p.review_unique_identifier, i.quantity, cr.id, w.id FROM customers_loyalty_program c JOIN product_reviews_and_ratings p ON c.associated_customer_reference_id = p.reviewing_customer_identifier JOIN inventory i ON p.referenced_product_identifier = i.referenced_product_id JOIN cart cr ON c.associated_customer_reference_id = cr.fk_user_id JOIN wishlist w ON c.associated_customer_reference_id = w.fk_user_id WHERE c.expiration_date_of_loyalty_points > NOW() AND p.flagged_as_inappropriate = false AND i.stock_status = 'available' AND cr.cart_status = 'active' AND w.wishlist_status = 'active'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM cart c JOIN shipping s ON c.id = s.carrier WHERE c.quantity = 'ten' AND s.shipped_date = 'yesterday'",
+    "CorrectQuery": "SELECT * FROM cart c JOIN shipping s ON c.id = s.fk_order_id WHERE c.quantity > 10 AND s.shipped_date = CURRENT_DATE - INTERVAL '1 day'"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.fk_product_id, T2.linked_order_reference_identifier, T3.associated_customer_reference_id FROM wishlist AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.fk_product_id = T2.transaction_unique_identifier WHERE T1.reminder_set = 'True'",
+    "CorrectQuery": "SELECT T1.fk_product_id, T2.linked_order_reference_identifier, T2.corresponding_customer_reference_identifier FROM wishlist AS T1 INNER JOIN transactions_and_payments AS T2 ON T1.fk_product_id = T2.linked_order_reference_identifier WHERE T1.reminder_set = True"
+  },
+  {
+    "IncorrectQuery": "SELECT T2.product_name FROM wishlist AS T1 INNER JOIN order_items AS T2 ON T1.product_id = T1.id",
+    "CorrectQuery": "SELECT T2.product_name FROM wishlist AS T1 INNER JOIN order_items AS T2 ON T1.fk_product_id = T2.product_id"
+  },
+  {
+    "IncorrectQuery": "SELECT eventTimestamp, time_spent_seconds, click_count FROM events WHERE event_type = 'purchase' AND device_platform = 'iOS' AND device_type = 'mobile';",
+    "CorrectQuery": "SELECT event_timestamp, time_spent_seconds, click_count FROM events WHERE event_type = 'purchase' AND device_platform = 'iOS' AND device_type = 'mobile';"
+  },
+  {
+    "IncorrectQuery": "SELECT fk_user_id FROM refunds_returns WHERE request_date = '2022-01-01' BETWEEN '2022-01-01' AND '2022-01-31'",
+    "CorrectQuery": "SELECT fk_user_id FROM refunds_returns WHERE request_date BETWEEN '2022-01-01' AND '2022-01-31'"
+  },
+  {
+    "IncorrectQuery": "SELECT review_unique_identifier FROM product_reviews_and_ratings JOIN customerinfo ON product_reviews_and_ratings.review_unique_identifier = customerinfo.person_customer_id WHERE account_account_balance = 'string' AND review_moderator_notes = 'string'",
+    "CorrectQuery": "SELECT review_unique_identifier FROM product_reviews_and_ratings JOIN customerinfo ON product_reviews_and_ratings.reviewing_customer_identifier = customerinfo.person_customer_id WHERE customerinfo.account_account_balance > 0 AND product_reviews_and_ratings.review_moderator_notes IS NOT NULL"
+  },
+  {
+    "IncorrectQuery": "SELECT o.total_amount, t.transaction_date_and_time, p.product_display_name FROM orders o JOIN transactions_and_payments t ON o.order_id = t.linked_order_reference_identifier JOIN order_items oi ON o.order_id = oi.order_id JOIN cart c ON oi.product_id = c.fk_product_id JOIN products p ON c.fk_product_id = p.unique_product_identifier WHERE o.created_at > '2023-01-01' AND t.transaction_date_and_time < '2023-12-31' AND p.estimated_replenishment_date IS NOT NULL AND c.wishlist_flag = TRUE AND o.order_status = t.transaction_status AND oi.item_status = 'Shipped' AND oi.quantity * oi.price_per_unit > 100 AND p.standard_retail_price_including_tax - p.promotional_discounted_price < o.total_amount - o.discount_applied AND c.discount_applied > 0 AND p.available_stock_quantity_in_units < oi.quantity",
+    "CorrectQuery": "SELECT o.total_amount, t.transaction_date_and_time, p.product_display_name FROM orders o JOIN transactions_and_payments t ON o.order_id = t.linked_order_reference_identifier JOIN order_items oi ON o.order_id = oi.order_id JOIN cart c ON oi.product_id = c.fk_product_id JOIN products p ON c.fk_product_id = p.unique_product_identifier WHERE o.created_at > '2023-01-01' AND t.transaction_date_and_time < '2023-12-31' AND p.estimated_replenishment_date IS NOT NULL AND c.wishlist_flag = TRUE AND o.order_status = t.transaction_status AND oi.item_status = 'Shipped' AND oi.quantity * oi.price_per_unit > 100 AND (COALESCE(p.standard_retail_price_including_tax, 0) - COALESCE(p.promotional_discounted_price, 0)) < (COALESCE(o.total_amount, 0) - COALESCE(o.discount_applied, 0)) AND c.discount_applied > 0 AND p.available_stock_quantity_in_units < oi.quantity"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM suppliers AS s JOIN events AS e ON s.supplier_country_of_operation = e.location_city JOIN customers_loyalty_program AS clp ON e.event_id = clp.expiration_date_of_loyalty_points JOIN product_reviews_and_ratings AS prr ON clp.accumulated_loyalty_points_balance = prr.sentiment_analysis_score JOIN cart AS c ON prr.submitted_review_star_rating = c.quantity",
+    "CorrectQuery": "SELECT * FROM suppliers AS s JOIN events AS e ON s.supplier_unique_identifier = e.person_customer_id JOIN customers_loyalty_program AS clp ON e.person_customer_id = clp.associated_customer_reference_id JOIN product_reviews_and_ratings AS prr ON clp.associated_customer_reference_id = prr.referenced_product_identifier JOIN cart AS c ON prr.referenced_product_identifier = c.fk_product_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM orders JOIN inventory ON orders.order_id = inventory.last_inventory_audit_date",
+    "CorrectQuery": "SELECT * FROM orders JOIN inventory ON orders.person_customer_id = (SELECT person_customer_id FROM order_items WHERE order_items.product_id = inventory.referenced_product_id)"
+  },
+  {
+    "IncorrectQuery": "SELECT orders.order_id FROM orders INNER JOIN order_items ON orders.order_date = order_items.warranty_period INNER JOIN inventory ON order_items.product_id = inventory.referenced_product_id INNER JOIN suppliers ON inventory.supplier_id = suppliers.total_number_of_products_supplied WHERE orders.order_date > NOW() AND inventory.quantity = 0",
+    "CorrectQuery": "SELECT orders.order_id FROM orders INNER JOIN order_items ON orders.order_id = order_items.order_id INNER JOIN inventory ON order_items.product_id = inventory.referenced_product_id INNER JOIN suppliers ON inventory.supplier_id = suppliers.supplier_unique_identifier WHERE orders.order_date > NOW() AND inventory.quantity = 0"
+  },
+  {
+    "IncorrectQuery": "SELECT person_first_name FROM customerinfo WHERE preferences_total_orders = 10 AND preferences_avg_spent_per_order",
+    "CorrectQuery": "SELECT person_first_name FROM customerinfo WHERE preferences_total_orders = 10 AND preferences_avg_spent_per_order > 0"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(transactions_and_payments.total_transaction_amount) FROM transactions_and_payments INNER JOIN customerinfo ON transactions_and_payments.corresponding_customer_reference_identifier = customerinfo.person_date_of_birth WHERE transactions_and_payments.transaction_status = 'success'",
+    "CorrectQuery": "SELECT SUM(transactions_and_payments.total_transaction_amount) FROM transactions_and_payments INNER JOIN customerinfo ON transactions_and_payments.corresponding_customer_reference_identifier = customerinfo.person_customer_id WHERE transactions_and_payments.transaction_status = 'success'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM inventory WHERE stock_status = 'low' AND orders.order_date > '2022-01-01'",
+    "CorrectQuery": "SELECT * FROM inventory WHERE stock_status = 'low' AND referenced_product_id IN (SELECT order_id FROM orders WHERE order_date > '2022-01-01')"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customerinfo WHERE address_city = 'New York' AND preferences_last_order_date '2020-01-01'",
+    "CorrectQuery": "SELECT * FROM customerinfo WHERE address_city = 'New York' AND preferences_last_order_date > '2020-01-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT DISTINCT order_id FROM order_items WHERE is_returnable = False AND is_replacement_available = True WHERE item_status = 'new'",
+    "CorrectQuery": "SELECT DISTINCT order_id FROM order_items WHERE is_returnable = False AND is_replacement_available = True AND item_status = 'new'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM campaigns WHERE campaign_id = campaign_id INNER JOIN inventory ON campaigns.campaign_id=inventory.supplier_id",
+    "CorrectQuery": "SELECT * FROM campaigns INNER JOIN inventory ON campaigns.campaign_id=inventory.supplier_id WHERE campaigns.campaign_id = 10"
+  },
+  {
+    "IncorrectQuery": "SELECT o.total_amount, s.average_supplier_rating, p.product_display_name FROM orders o JOIN shipping s ON o.order_id = s.fk_order_id JOIN products p ON s.fk_order_id = p.unique_product_identifier WHERE o.order_status = 'delivered' AND s.shipping_status = 'shipped' AND p.active_product_status = TRUE ORDER BY o.created_at DESC LIMIT 10;",
+    "CorrectQuery": "SELECT o.total_amount, su.average_supplier_rating, p.product_display_name FROM orders o JOIN shipping s ON o.order_id = s.fk_order_id JOIN products p ON p.unique_product_identifier = s.fk_order_id JOIN suppliers su ON su.supplier_unique_identifier = p.associated_supplier_reference_id WHERE o.order_status = 'delivered' AND s.shipping_status = 'shipped' AND p.active_product_status = TRUE ORDER BY o.created_at DESC LIMIT 10;"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.preferred_communication_channel, T2.textual_review_feedback FROM customers_loyalty_program AS T1 INNER JOIN product_reviews_and_ratings AS T2 ON T1.customer_birthday_special_discount = T2.submitted_review_star_rating INNER JOIN events AS T3 ON T2.review_unique_identifier = T3.person_customer_id INNER JOIN refunds_returns AS T4 ON T3.order_id = T4.fk_order_id INNER JOIN order_items AS T5 ON T4.fk_product_id = T5.product_id WHERE T5.return_period > ( SELECT T6.click_count FROM events AS T6 WHERE T6.device_browser = 'Chrome' AND T6.location_city = 'San Francisco' )",
+    "CorrectQuery": "SELECT T1.preferred_communication_channel, T2.textual_review_feedback FROM customers_loyalty_program AS T1 INNER JOIN product_reviews_and_ratings AS T2 ON T1.associated_customer_reference_id = T2.referenced_product_identifier INNER JOIN events AS T3 ON T2.referenced_product_identifier = T3.person_customer_id INNER JOIN refunds_returns AS T4 ON T3.order_id = T4.fk_order_id INNER JOIN order_items AS T5 ON T4.fk_product_id = T5.product_id WHERE T5.return_period > ( SELECT T6.click_count FROM events AS T6 WHERE T6.device_browser = 'Chrome' AND T6.location_city = 'San Francisco' )"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(total_transaction_amount) FROM transactions_and_payments WHERE corresponding_customer_reference_identifier = 'string';",
+    "CorrectQuery": "SELECT SUM(total_transaction_amount) FROM transactions_and_payments WHERE corresponding_customer_reference_identifier = 123;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM order_items WHERE quantity = SUM(price_per_unit) * 10",
+    "CorrectQuery": "SELECT * FROM order_items WHERE quantity * 10 = (SELECT SUM(price_per_unit) FROM order_items)"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM events WHERE event_timestamp = '2022-01-01' AND order_items.product_name = 'Laptop';",
+    "CorrectQuery": "SELECT e.* FROM events e JOIN order_items oi ON e.order_item_id = oi.order_item_id WHERE e.event_timestamp = '2022-01-01' AND oi.product_name = 'Laptop';"
+  },
+  {
+    "IncorrectQuery": "SELECT pr.submitted_review_star_rating, c.person_first_name, p.product_display_name FROM product_reviews_and_ratings AS pr JOIN customerinfo AS c ON pr.reviewing_customer_identifier = c.person_customer_id JOIN products AS p ON pr.referenced_product_identifier = p.unique_product_identifier WHERE pr.submitted_review_star_rating > 5 AND pr.submitted_review_star_rating < 0 AND c.person_is_premium = true AND p.featured_product_flag = 1",
+    "CorrectQuery": "SELECT pr.submitted_review_star_rating, c.person_first_name, p.product_display_name FROM product_reviews_and_ratings AS pr JOIN customerinfo AS c ON pr.reviewing_customer_identifier = c.person_customer_id JOIN products AS p ON pr.referenced_product_identifier = p.unique_product_identifier WHERE pr.submitted_review_star_rating BETWEEN 1 AND 5 AND c.person_is_premium = true AND p.featured_product_flag = true"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM orders AS o INNER JOIN (transactions_and_payments AS t) ON (o.person_customer_id = t.corresponding_customer_reference_identifier) INNER JOIN events AS e ON (o.order_id = e.order_id) LEFT JOIN wishlist AS w ON (o.person_customer_id = w.fk_user_id) INNER JOIN (cart AS c) ON (w.fk_product_id = c.fk_product_id) WHERE o.order_date > e.event_timestamp AND e.device_browser = 'Chrome' AND o.total_amount > 1000 AND c.cart_status = 'Abandoned'",
+    "CorrectQuery": "SELECT * FROM orders AS o INNER JOIN transactions_and_payments AS t ON (o.person_customer_id = t.corresponding_customer_reference_identifier) INNER JOIN events AS e ON (o.order_id = e.order_id) LEFT JOIN wishlist AS w ON (o.person_customer_id = w.fk_user_id) INNER JOIN cart AS c ON (w.fk_product_id = c.fk_product_id) WHERE o.order_date > e.event_timestamp AND e.device_browser = 'Chrome' AND o.total_amount > 1000 AND c.cart_status = 'Abandoned'"
+  },
+  {
+    "IncorrectQuery": "SELECT orders.order_id, customerinfo.person_first_name, customers_loyalty_program.accumulated_loyalty_points_balance FROM orders INNER JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id INNER JOIN customers_loyalty_program ON customerinfo.person_customer_id = customers_loyalty_program.associated_customer_reference_id RIGHT JOIN inventory ON orders.order_id = inventory.id WHERE orders.order_status = 'cancelled' AND customers_loyalty_program.eligible_for_special_promotions = FALSE OR inventory.expected_restock_date > NOW() GROUP BY orders.order_id, customerinfo.person_first_name, customers_loyalty_program.accumulated_loyalty_points_balance HAVING SUM(orders.total_amount) < 500 AND AVG(customers_loyalty_program.accumulated_loyalty_points_balance) < 200 INTERSECT SELECT orders.order_id FROM orders INNER JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id WHERE customerinfo.person_is_premium = TRUE",
+    "CorrectQuery": "SELECT o.order_id, c.person_first_name, clp.accumulated_loyalty_points_balance FROM orders o INNER JOIN customerinfo c ON o.person_customer_id = c.person_customer_id INNER JOIN customers_loyalty_program clp ON c.person_customer_id = clp.associated_customer_reference_id LEFT JOIN inventory i ON o.order_id = i.id WHERE o.order_status = 'cancelled' AND clp.eligible_for_special_promotions = FALSE AND i.expected_restock_date > NOW() GROUP BY o.order_id, c.person_first_name, clp.accumulated_loyalty_points_balance HAVING SUM(o.total_amount) < 500 AND AVG(clp.accumulated_loyalty_points_balance) < 200"
+  },
+  {
+    "IncorrectQuery": "SELECT review_unique_identifier, referenced_product_identifier, reviewing_customer_identifier FROM product_reviews_and_ratings WHERE total_number_of_edits_made > 5 AND order_status = 'Delivered';",
+    "CorrectQuery": "SELECT review_unique_identifier, referenced_product_identifier, reviewing_customer_identifier FROM product_reviews_and_ratings WHERE total_number_of_edits_made > 5;"
+  },
+  {
+    "IncorrectQuery": "SELECT official_supplier_business_name FROM suppliers WHERE featured_product_flag = TRUE",
+    "CorrectQuery": "SELECT official_supplier_business_name FROM suppliers INNER JOIN products ON suppliers.supplier_unique_identifier = products.associated_supplier_reference_id WHERE featured_product_flag = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT inventory.quantity, products.detailed_product_description FROM inventory JOIN products ON inventory.referenced_product_id = product.unique_product_identifier WHERE inventory.quantity < inventory.stock_threshold;",
+    "CorrectQuery": "SELECT inventory.quantity, products.detailed_product_description FROM inventory JOIN products ON inventory.referenced_product_id = products.unique_product_identifier WHERE inventory.quantity < inventory.stock_threshold;"
+  },
+  {
+    "IncorrectQuery": "SELECT events.event_type, events.event_timestamp, customers_loyalty_program.loyalty_membership_unique_identifier FROM events JOIN customers_loyalty_program ON events.person_customer_id = customers_loyalty_program.associated_customer_reference_id WHERE events.event_type = 'purchase' AND customers_loyalty_program.accumulated_loyalty_points_balance > 500 AND events.event_timestamp > '2022-01-01' GROUP BY events.event_type, events.event_timestamp, customers_loyalty_program.loyalty_membership_unique_identifier HAVING COUNT(events.event_id) > 10 ORDER BY events.event_timestamp ASC OFFSET 'abc';",
+    "CorrectQuery": "SELECT e.event_type, e.event_timestamp, clp.loyalty_membership_unique_identifier FROM events e JOIN customers_loyalty_program clp ON e.person_customer_id = clp.associated_customer_reference_id WHERE e.event_type = 'purchase' AND clp.accumulated_loyalty_points_balance > 500 AND e.event_timestamp > '2022-01-01' GROUP BY e.event_type, e.event_timestamp, clp.loyalty_membership_unique_identifier HAVING COUNT(e.event_id) > 10 ORDER BY e.event_timestamp ASC LIMIT 100;"
+  },
+  {
+    "IncorrectQuery": "SELECT TAP.transaction_date_and_time, EV.event_timestamp, TAP.transaction_date_and_time + EV.time_spent_seconds AS total_time_spent FROM transactions_and_payments AS TAP JOIN events AS EV ON TAP.transaction_unique_identifier = EV.event_id WHERE TAP.is_transaction_fraudulent = TRUE AND EV.review_rating > 4",
+    "CorrectQuery": "SELECT TAP.transaction_date_and_time, EV.event_timestamp, TAP.transaction_date_and_time + INTERVAL '1 second' * EV.time_spent_seconds AS total_time_spent FROM transactions_and_payments AS TAP JOIN events AS EV ON TAP.transaction_unique_identifier = EV.order_id WHERE TAP.is_transaction_fraudulent = TRUE AND EV.review_rating > 4"
+  },
+  {
+    "IncorrectQuery": "SELECT orders.total_amount, campaign.campaign_name FROM orders JOIN campaign ON orders.campaign_id = campaign.campaign_id WHERE orders.order_status = 'completed' AND campaign.end_date < CURRENT_DATE;",
+    "CorrectQuery": "SELECT orders.total_amount, campaigns.campaign_name FROM orders JOIN campaigns ON orders.campaign_id = campaigns.campaign_id WHERE orders.order_status = 'completed' AND campaigns.end_date < CURRENT_DATE;"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(total_amount) FROM orders WHERE order_status = 1;",
+    "CorrectQuery": "SELECT SUM(total_amount) FROM orders WHERE order_status = 'pending';"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.product_name, T2.product_display_name FROM order_items AS T1 INNER JOIN wishlist AS T2 ON T1.product_name = T2.product_name LEFT JOIN products AS T3 ON T3.unique_product_identifier = T2.fk_product_id WHERE T2.priority_level = 'high' GROUP BY T1.product_name, T2.product_name",
+    "CorrectQuery": "SELECT T1.product_name, T3.product_display_name FROM order_items AS T1 INNER JOIN wishlist AS T2 ON T1.product_id = T2.fk_product_id INNER JOIN products AS T3 ON T3.unique_product_identifier = T2.fk_product_id WHERE T2.priority_level = 'high' GROUP BY T1.product_name, T3.product_display_name"
+  },
+  {
+    "IncorrectQuery": "SELECT prar.review_unique_identifier, tr.final_billed_amount, c.cart_status, ev.event_type FROM product_reviews_and_ratings prar JOIN transactions_and_payments tr ON prar.review_unique_identifier = tr.transaction_unique_identifier JOIN cart c ON tr.corresponding_customer_reference_identifier = c.id JOIN events ev ON tr.transaction_date_and_time = ev.event_timestamp WHERE prar.review_unique_identifier > 1000 AND tr.final_billed_amount < 200 AND c.cart_status = 'active' AND ev.event_type = 'purchase' GROUP BY prar.review_unique_identifier, c.cart_status",
+    "CorrectQuery": "SELECT prar.review_unique_identifier, tr.final_billed_amount, c.cart_status, ev.event_type FROM product_reviews_and_ratings prar JOIN transactions_and_payments tr ON prar.reviewing_customer_identifier = tr.corresponding_customer_reference_identifier JOIN cart c ON prar.reviewing_customer_identifier = c.fk_user_id JOIN events ev ON tr.transaction_unique_identifier = ev.order_id WHERE prar.review_unique_identifier > 1000 AND tr.final_billed_amount < 200 AND c.cart_status = 'active' AND ev.event_type = 'purchase'"
+  },
+  {
+    "IncorrectQuery": "SELECT reviewed_product_identifier FROM product_reviews_and_ratings GROUP BY reviewed_product_identifier HAVING AVG(submitted_review_star_rating) = 5",
+    "CorrectQuery": "SELECT referenced_product_identifier FROM product_reviews_and_ratings GROUP BY referenced_product_identifier HAVING AVG(submitted_review_star_rating) = 5"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM wishlist w INNER JOIN refunds_returns rr ON w.price_at_addition = rr.is_refundable",
+    "CorrectQuery": "SELECT * FROM wishlist w INNER JOIN refunds_returns rr ON w.fk_user_id = rr.fk_user_id"
+  },
+  {
+    "IncorrectQuery": "SELECT inventory.last_updated, campaigns.budget FROM inventory JOIN campaigns ON inventory.supplier_id = campaigns.campaign_id WHERE inventory.stock_threshold < 10 AND campaigns.campaign_status = 'live'",
+    "CorrectQuery": "SELECT inventory.last_updated, campaigns.budget FROM inventory JOIN campaigns ON inventory.supplier_id = campaigns.campaign_id WHERE inventory.stock_threshold < 10 AND campaigns.campaign_status = 'live'"
+  },
+  {
+    "IncorrectQuery": "SELECT t_order_id FROM orders WHERE order_date < current_date - INTERVAL '30 days' RIGHT JOIN transactions_and_payments",
+    "CorrectQuery": "SELECT o.order_id FROM orders o RIGHT JOIN transactions_and_payments t ON o.order_id = t.linked_order_reference_identifier WHERE o.order_date < current_date - INTERVAL '30 days'"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM cart LEFT JOIN products RIGHT JOIN inventory WHERE cart.id = products.unique_product_identifier AND products.unique_product_identifier = inventory.referenced_product_id AND inventory.quantity < (SELECT COUNT(*) FROM cart) AND cart.discount_applied > (SELECT AVG(total_discount_amount_redeemed) FROM customers_loyalty_program) AND customers_loyalty_program.eligible_for_special_promotions = FALSE AND products.featured_product_flag = TRUE AND products.official_product_release_date > '2020-01-01'",
+    "CorrectQuery": "SELECT * FROM cart LEFT JOIN products ON cart.fk_product_id = products.unique_product_identifier LEFT JOIN inventory ON products.unique_product_identifier = inventory.referenced_product_id WHERE inventory.quantity < (SELECT COUNT(*) FROM cart) AND cart.discount_applied > (SELECT AVG(total_discount_amount_redeemed) FROM customers_loyalty_program) AND products.featured_product_flag = TRUE AND products.official_product_release_date > '2020-01-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT customers_loyalty_program.accumulated_loyalty_points_balance, events.event_timestamp FROM customers_loyalty_program JOIN events ON customers_loyalty_program.associated_customer_reference_id = events.person_customer_id WHERE events.event_type = 'purchase' AND customers_loyalty_program.expiration_date_of_loyalty_points > CURRENT_DATE AND customers_loyalty_program.exclusive_member_early_access IS TRUE AND cart.cart_status = 'active';",
+    "CorrectQuery": "SELECT customers_loyalty_program.accumulated_loyalty_points_balance, events.event_timestamp FROM customers_loyalty_program JOIN events ON customers_loyalty_program.associated_customer_reference_id = events.person_customer_id WHERE events.event_type = 'purchase' AND customers_loyalty_program.expiration_date_of_loyalty_points > CURRENT_DATE AND customers_loyalty_program.exclusive_member_early_access IS TRUE;"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(DISTINCT order_id) FROM events WHERE device_platform = 'ios' GROUP BY campaign_id",
+    "CorrectQuery": "SELECT COUNT(DISTINCT e.order_id) FROM events e INNER JOIN campaigns c ON e.order_id = c.campaign_id WHERE e.device_platform = 'ios' GROUP BY c.campaign_id"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(final_billed_amount) FROM transactions_and_payments t1 JOIN product_reviews_and_ratings t2 ON t1.corresponding_customer_reference_identifier = t2.reviewing_customer_identifier WHERE t1.transaction_date_and_time > '2023-01-01' AND t2.customer_review_submission_date < '2023-01-01'",
+    "CorrectQuery": "SELECT SUM(final_billed_amount) FROM transactions_and_payments t1 JOIN product_reviews_and_ratings t2 ON t1.corresponding_customer_reference_identifier = t2.reviewing_customer_identifier WHERE t1.transaction_date_and_time > '2023-01-01' AND t2.customer_review_submission_date > '2023-01-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(T1.standard_retail_price_including_tax * T3.quantity) AS total_value_of_orders FROM suppliers AS T1 INNER JOIN products AS T2 ON T2.associated_supplier_reference_id = T1.supplier_unique_identifier LEFT JOIN cart AS T3 ON T3.fk_product_id = T2.unique_product_identifier WHERE T3.discount_applied > 0.10 AND T1.average_supplier_rating > 4.5 GROUP BY T1.annual_loyalty_spending_threshold ORDER BY T1.loyalty_program_tier_level LIMIT 10;",
+    "CorrectQuery": "SELECT SUM(T2.standard_retail_price_including_tax * T3.quantity) AS total_value_of_orders FROM suppliers AS T1 INNER JOIN products AS T2 ON T2.associated_supplier_reference_id = T1.supplier_unique_identifier LEFT JOIN cart AS T3 ON T3.fk_product_id = T2.unique_product_identifier WHERE T3.discount_applied > 0.10 AND T1.average_supplier_rating > 4.5 GROUP BY T1.supplier_unique_identifier ORDER BY T1.supplier_unique_identifier LIMIT 10;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM wishlist JOIN transactions_and_payments ON wishlist.wishlist_status = transactions_and_payments.transaction_status",
+    "CorrectQuery": "SELECT * FROM wishlist JOIN transactions_and_payments ON wishlist.fk_product_id = transactions_and_payments.linked_order_reference_identifier"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(total_transaction_amount) + ' Total Transactions' FROM transactions_and_payments",
+    "CorrectQuery": "SELECT SUM(total_transaction_amount) FROM transactions_and_payments"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM products WHERE active_product_status = 'active' AND net_weight_in_kilograms SUM > 0",
+    "CorrectQuery": "SELECT * FROM products WHERE active_product_status = TRUE AND net_weight_in_kilograms > 0"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM orders WHERE delivery_date = '2022-01-01' AND discount_applied = TRUE",
+    "CorrectQuery": "SELECT COUNT(*) FROM orders WHERE delivery_date = '2022-01-01' AND discount_applied > 0"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM transactions_and_payments tp JOIN inventory i ON tp.transaction_unique_identifier = i.referenced_product_id WHERE tp.final_billed_amount > 1000 AND i.quantity > 10 GROUP BY tp.transaction_currency_code HAVING SUM(i.quantity) > 1000",
+    "CorrectQuery": "SELECT * FROM transactions_and_payments tp JOIN inventory i ON tp.linked_order_reference_identifier = i.referenced_product_id WHERE tp.final_billed_amount > 1000 AND i.quantity > 10"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM products JOIN refunds_returns ON products.associated_supplier_reference_id = refunds_returns.request_date",
+    "CorrectQuery": "SELECT * FROM products JOIN refunds_returns ON products.unique_product_identifier = refunds_returns.fk_product_id"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(total_amount) FROM (SELECT * FROM orders AS o INNER JOIN transactions_and_payments AS t ON (o.person_customer_id = t.corresponding_customer_reference_identifier) INNER JOIN events AS e ON (o.order_id = e.order_id) WHERE o.order_status = 'Delivered' AND e.device_browser = 'Chrome') AS subquery WHERE e.event_timestamp > '2022-01-01'",
+    "CorrectQuery": "SELECT SUM(o.total_amount) FROM orders AS o INNER JOIN transactions_and_payments AS t ON (o.person_customer_id = t.corresponding_customer_reference_identifier) INNER JOIN events AS e ON (o.order_id = e.order_id) WHERE o.order_status = 'Delivered' AND e.device_browser = 'Chrome' AND e.event_timestamp > '2022-01-01'"
+  },
+  {
+    "IncorrectQuery": "SELECT p.product_display_name FROM products p WHERE p.featured_product_flag = TRUE  INNER JOIN suppliers s ON p.associated_supplier_reference_id = s.supplier_unique_identifier",
+    "CorrectQuery": "SELECT p.product_display_name FROM products p INNER JOIN suppliers s ON p.associated_supplier_reference_id = s.supplier_unique_identifier WHERE p.featured_product_flag = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT T1.wishlist_status, T1.price_at_addition, T2.start_date, T3.standard_retail_price_including_tax, T4.official_supplier_business_name FROM wishlist AS T1 LEFT JOIN campaigns AS T2 ON T2.campaign_id = T1.fk_product_id INNER JOIN products AS T3 ON T3.unique_product_identifier = T2.campaign_id RIGHT JOIN suppliers AS T4 ON T4.supplier_unique_identifier = T1.fk_user_id WHERE T1.price_at_addition > T2.budget AND T3.standard_retail_price_including_tax < T2.actual_spent",
+    "CorrectQuery": "SELECT T1.wishlist_status, T1.price_at_addition, T2.start_date, T3.standard_retail_price_including_tax, T4.official_supplier_business_name FROM wishlist AS T1 LEFT JOIN products AS T3 ON T3.unique_product_identifier = T1.fk_product_id INNER JOIN suppliers AS T4 ON T4.supplier_unique_identifier = T3.associated_supplier_reference_id LEFT JOIN campaigns AS T2 ON T2.campaign_id = T3.unique_product_identifier WHERE T1.price_at_addition > T2.budget AND T3.standard_retail_price_including_tax < T2.actual_spent"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM orders WHERE delivery_date = '2022-01-01' AND person_customer_id IN (SELECT person_customer_id FROM customerinfo WHERE person_first_name = 'John' AND person_last_name = 'Doe') JOIN product_reviews_and_ratings ON orders.person_customer_id = product_reviews_and_ratings.reviewing_customer_identifier WHERE submitted_review_star_rating = 5 JOIN wishlist ON customerinfo.person_customer_id = wishlist.fk_user_id WHERE wishlist_status = 'active' JOIN refunds_returns ON orders.order_id = refunds_returns.fk_order_id WHERE refund_status = 'pending'",
+    "CorrectQuery": "SELECT DISTINCT orders.* FROM orders JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id JOIN product_reviews_and_ratings ON orders.person_customer_id = product_reviews_and_ratings.reviewing_customer_identifier JOIN wishlist ON customerinfo.person_customer_id = wishlist.fk_user_id JOIN refunds_returns ON orders.order_id = refunds_returns.fk_order_id WHERE orders.delivery_date = '2022-01-01' AND customerinfo.person_first_name = 'John' AND customerinfo.person_last_name = 'Doe' AND product_reviews_and_ratings.submitted_review_star_rating = 5 AND wishlist.wishlist_status = 'active' AND refunds_returns.refund_status = 'pending'"
+  },
+  {
+    "IncorrectQuery": "SELECT AVG(click_count) FROM events WHERE device_platform = 'Desktop' AND order_items.product_id = 123;",
+    "CorrectQuery": "SELECT AVG(e.click_count) FROM events e JOIN order_items oi ON e.order_item_id = oi.order_item_id WHERE e.device_platform = 'Desktop' AND oi.product_id = 123;"
+  },
+  {
+    "IncorrectQuery": "SELECT unique_product_identifier FROM products ORDER BY supplier_tax_identification_number ASC",
+    "CorrectQuery": "SELECT unique_product_identifier FROM products ORDER BY standard_retail_price_including_tax ASC"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM orders JOIN suppliers ON orders.supplier_id = suppliers.supplier_unique_identifier",
+    "CorrectQuery": "SELECT * FROM orders WHERE orders.person_customer_id IN (SELECT fk_user_id FROM cart) AND EXISTS (SELECT 1 FROM suppliers WHERE suppliers.supplier_unique_identifier = orders.campaign_id)"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM inventory WHERE stock_status = 0",
+    "CorrectQuery": "SELECT COUNT(*) FROM inventory WHERE stock_status = 'stock_status_value'"
+  },
+  {
+    "IncorrectQuery": "SELECT o.order_id, ci.person_first_name, ci.person_last_name, sh.shipped_date FROM orders AS o JOIN customerinfo AS ci ON o.person_customer_id = ci.person_customer_id JOIN shipping AS sh ON o.shipping_id = sh.id WHERE o.order_status = 'completed'",
+    "CorrectQuery": "SELECT o.order_id, ci.person_first_name, ci.person_last_name, sh.shipped_date FROM orders AS o JOIN customerinfo AS ci ON o.person_customer_id = ci.person_customer_id JOIN shipping AS sh ON o.order_id = sh.fk_order_id WHERE o.order_status = 'completed'"
+  },
+  {
+    "IncorrectQuery": "SELECT c.person_first_name, o.order_item_id, w.product_name, cl.exclusive_member_early_access FROM customerinfo c INNER JOIN order_items o ON c.person_first_name = o.product_name INNER JOIN wishlist w ON w.id = c.person_loyalty_points INNER JOIN customers_loyalty_program cl ON cl.exclusive_member_early_access = c.account_account_balance",
+    "CorrectQuery": "SELECT c.person_first_name, o.order_item_id, w.product_name, cl.exclusive_member_early_access FROM customerinfo c INNER JOIN wishlist w ON c.person_customer_id = w.fk_user_id INNER JOIN order_items o ON o.product_id = w.fk_product_id INNER JOIN customers_loyalty_program cl ON c.person_customer_id = cl.associated_customer_reference_id WHERE o.order_item_id > 0 AND c.account_account_balance > cl.annual_loyalty_spending_threshold AND cl.exclusive_member_early_access = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT c.person_first_name, c.person_last_name, o.order_id, o.total_amount, e.event_type, w.wishlist_status FROM customerinfo c JOIN orders o ON c.person_customer_id = o.person_customer_id LEFT JOIN events e ON o.order_id = e.order_id LEFT JOIN wishlist w ON c.person_customer_id = w.fk_user_id WHERE c.person_is_premium = TRUE AND o.order_status = 'completed' AND e.event_type = 'purchase' AND w.wishlist_status = 'active' AND c.securitytwo_factor_enabled = TRUE AND o.created_at > '2023-01-01' AND e.time_spent_seconds > 300 AND w.added_at < '2023-12-31' AND w.expected_purchase_date IS NOT NULL AND e.device_platform = 'mobile' AND o.discount_applied > w.discount_at_addition AND c.account_card_expiry >= '2025-01-01' AND c.preferences_total_orders > 50 AND c.account_has_active_subscription = TRUE AND e.click_count > 10 AND w.priority_level = 'high' AND w.quantity > 0 AND w.reminder_set = TRUE AND c.securityemail_notifications = TRUE AND c.securitysms_notifications = TRUE AND w.category = 'electronics' AND w.brand_name = 'Samsung' AND c.person_preferred_language = 'English' AND c.person_occupation = 'Engineer' AND c.person_marital_status = 'Married' AND c.person_income > 50000 AND c.account_preferred_payment_method = 'CreditCard' AND o.shipping_address_city = e.location_city AND o.shipping_address_country = e.location_country AND o.payment_method = e.payment_method AND o.campaign_id = 123 AND w.session_id = e.session_id AND w.session_id = c.session_id AND w.session_id = o.session_id AND w.session_id = e.session_id AND w.session_id = c.session_id",
+    "CorrectQuery": "SELECT c.person_first_name, c.person_last_name, o.order_id, o.total_amount, e.event_type, w.wishlist_status FROM customerinfo c JOIN orders o ON c.person_customer_id = o.person_customer_id LEFT JOIN events e ON o.order_id = e.order_id LEFT JOIN wishlist w ON c.person_customer_id = w.fk_user_id WHERE c.person_is_premium = TRUE AND o.order_status = 'completed' AND e.event_type = 'purchase' AND w.wishlist_status = 'active' AND c.securitytwo_factor_enabled = TRUE AND o.created_at > '2023-01-01' AND e.time_spent_seconds > 300 AND w.added_at < '2023-12-31' AND w.expected_purchase_date IS NOT NULL AND e.device_platform = 'mobile' AND o.discount_applied > w.discount_at_addition AND c.account_card_expiry >= '2025-01-01' AND c.preferences_total_orders > 50 AND c.account_has_active_subscription = TRUE AND e.click_count > 10 AND w.priority_level = 'high' AND w.quantity > 0 AND w.reminder_set = TRUE AND c.securityemail_notifications = TRUE AND c.securitysms_notifications = TRUE AND w.category = 'electronics' AND w.brand_name = 'Samsung' AND c.person_preferred_language = 'English' AND c.person_occupation = 'Engineer' AND c.person_marital_status = 'Married' AND c.person_income > 50000 AND c.account_preferred_payment_method = 'CreditCard' AND o.shipping_address_city = e.location_city AND o.shipping_address_country = e.location_country AND o.payment_method = e.payment_method AND o.campaign_id = 123 AND w.session_id = e.session_id"
+  },
+  {
+    "IncorrectQuery": "SELECT cbr.accumulated_loyalty_points_balance FROM customers_loyalty_program cbr INNER JOIN inventory i ON cbr.associated_customer_reference_id = 10",
+    "CorrectQuery": "SELECT cbr.accumulated_loyalty_points_balance FROM customers_loyalty_program cbr INNER JOIN transactions_and_payments tap ON cbr.associated_customer_reference_id = tap.corresponding_customer_reference_identifier"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(shipping_cost) FROM shipping WHERE shipping_status = 'shipped' AND events.order_id = shipping.fk_order_id;",
+    "CorrectQuery": "SELECT SUM(s.shipping_cost) FROM shipping s JOIN events e ON s.fk_order_id = e.order_id WHERE s.shipping_status = 'shipped';"
+  },
+  {
+    "IncorrectQuery": "SELECT inventory.quantity, products.product_display_name, cart.price_per_unit FROM inventory JOIN cart ON inventory.id = cart.id WHERE inventory.stock_threshold > 100 AND cart.quantity > 5",
+    "CorrectQuery": "SELECT inventory.quantity, products.product_display_name, cart.price_per_unit FROM inventory JOIN cart ON inventory.referenced_product_id = cart.fk_product_id JOIN products ON cart.fk_product_id = products.unique_product_identifier WHERE inventory.stock_threshold > 100 AND cart.quantity > 5"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program clp INNER JOIN wishlist w ON clp.associated_customer_reference_id = w.reminder_set",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program clp INNER JOIN wishlist w ON clp.associated_customer_reference_id = w.fk_user_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM events WHERE review_rating > 4 AND orders.person_customer_id = 123",
+    "CorrectQuery": "SELECT * FROM events WHERE review_rating > 4 AND person_customer_id = 123 AND order_id IN (SELECT order_id FROM orders WHERE person_customer_id = 123)"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM product_reviews_and_ratings p JOIN shipping s ON p.review_unique_identifier = s.shipping_zipcode",
+    "CorrectQuery": "SELECT * FROM product_reviews_and_ratings p JOIN order_items o ON p.referenced_product_identifier = o.product_id JOIN shipping s ON o.order_id = s.fk_order_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM transactions_and_payments JOIN shipping ON transactions_and_payments.linked_order_reference_identifier = shipping.shipping_country",
+    "CorrectQuery": "SELECT * FROM transactions_and_payments JOIN shipping ON transactions_and_payments.linked_order_reference_identifier = shipping.fk_order_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM customers_loyalty_program WHERE participation_in_exclusive_beta_testing = TRUE INNER JOIN shipping ON customers_loyalty_program.associated_customer_reference_id = shipping.fk_order_id LIMIT 1",
+    "CorrectQuery": "SELECT * FROM customers_loyalty_program INNER JOIN shipping ON customers_loyalty_program.associated_customer_reference_id = shipping.fk_order_id WHERE customers_loyalty_program.participation_in_exclusive_beta_testing = TRUE LIMIT 1"
+  },
+  {
+    "IncorrectQuery": "SELECT campaign_name FROM campaigns ORDER BY start_date ASC LIMIT 1 OFFSET; ",
+    "CorrectQuery": "SELECT campaign_name FROM campaigns ORDER BY start_date ASC LIMIT 1 OFFSET 0;"
+  },
+  {
+    "IncorrectQuery": "SELECT event_id FROM events WHERE device_platform = 'ios' AND event_type = orderplaced",
+    "CorrectQuery": "SELECT event_id FROM events WHERE device_platform = 'ios' AND event_type = 'orderplaced';"
+  },
+  {
+    "IncorrectQuery": "SELECT orders.total_amount, customerinfo.person_first_name, campaigns.campaign_name FROM orders JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id JOIN campaigns ON orders.campaign_id = campaigns.campaign_id WHERE orders.order_date > '2023-01-01' AND customerinfo.person_age > 30;",
+    "CorrectQuery": "SELECT orders.total_amount, customerinfo.person_first_name, campaigns.campaign_name FROM orders JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id JOIN campaigns ON orders.campaign_id = campaigns.campaign_id WHERE orders.order_date > '2023-01-01' AND EXTRACT(YEAR FROM AGE(customerinfo.person_date_of_birth)) > 30;"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM transactions_and_payments t JOIN campaigns c ON t.linked_order_reference_identifier = c.campaign_id WHERE c.start_date = '2022-01-01' AND t.final_billed_amount = 'string'",
+    "CorrectQuery": "SELECT * FROM transactions_and_payments t JOIN campaigns c ON t.linked_order_reference_identifier = c.campaign_id WHERE c.start_date = '2022-01-01' AND t.final_billed_amount > 0"
+  },
+  {
+    "IncorrectQuery": "SELECT SUM(total_amount) AS total_spent FROM orders WHERE order_date = current_date AND payment_status = 'paid' GROUP BY orders.person_customer_id JOIN loyalty_membership_unique_identifier",
+    "CorrectQuery": "SELECT SUM(o.total_amount) AS total_spent FROM orders o INNER JOIN customers_loyalty_program clp ON o.person_customer_id = clp.associated_customer_reference_id WHERE o.order_date = current_date AND o.payment_status = 'paid' GROUP BY o.person_customer_id"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM campaigns c JOIN inventory i ON c.campaign_id = i.referenced_product_id WHERE c.campaign_status = 'active' AND i.stock_status = 'low' ORDER BY c.campaign_id = 'desc';",
+    "CorrectQuery": "SELECT * FROM campaigns c JOIN inventory i ON c.campaign_id = i.referenced_product_id WHERE c.campaign_status = 'active' AND i.stock_status = 'low' ORDER BY c.campaign_id DESC;"
+  },
+  {
+    "IncorrectQuery": "SELECT orders.order_id, customerinfo.person_first_name, customerinfo.person_last_name, refunds_returns.refund_amount FROM orders JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id JOIN refunds_returns ON orders.order_id = refunds_returns.fk_order_id WHERE refunds_returns.refund_status = 'approved' JOIN product_reviews_and_ratings ON customerinfo.person_customer_id = product_reviews_and_ratings.reviewing_customer_identifier WHERE product_reviews_and_ratings.submitted_review_star_rating = 5",
+    "CorrectQuery": "SELECT orders.order_id, customerinfo.person_first_name, customerinfo.person_last_name, refunds_returns.refund_amount FROM orders JOIN customerinfo ON orders.person_customer_id = customerinfo.person_customer_id JOIN refunds_returns ON orders.order_id = refunds_returns.fk_order_id JOIN product_reviews_and_ratings ON customerinfo.person_customer_id = product_reviews_and_ratings.reviewing_customer_identifier WHERE refunds_returns.refund_status = 'approved' AND product_reviews_and_ratings.submitted_review_star_rating = 5"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM events WHERE event_id = event_id INNER JOIN campaigns ON events.event_id=campaigns.campaign_id AND campaigns.campaign_id = 10",
+    "CorrectQuery": "SELECT * FROM events INNER JOIN campaigns ON events.event_id=campaigns.campaign_id WHERE campaigns.campaign_id = 10 AND events.event_id = 10"
+  },
+  {
+    "IncorrectQuery": "SELECT * FROM products INNER JOIN inventory ON inventory.referenced_product_id = products.unique_product_identifier WHERE products.featured_product_flag = TRUE GROUP BY products.unique_product_identifier HAVING COUNT(inventory.referenced_product_id) > 1",
+    "CorrectQuery": "SELECT * FROM products INNER JOIN ( SELECT referenced_product_id FROM inventory GROUP BY referenced_product_id HAVING COUNT(referenced_product_id) > 1 ) AS T1 ON T1.referenced_product_id = products.unique_product_identifier WHERE products.featured_product_flag = TRUE"
+  },
+  {
+    "IncorrectQuery": "SELECT COUNT(*) FROM orders WHERE shipping_address_state = 12345;",
+    "CorrectQuery": "SELECT COUNT(*) FROM orders WHERE shipping_address_state = '12345';"
+  },
+  {
+    "IncorrectQuery": "SELECT person_first_name, person_last_name FROM customerinfo WHERE person_age > 30;",
+    "CorrectQuery": "SELECT person_first_name, person_last_name FROM customerinfo WHERE DATE_PART('year', AGE(person_date_of_birth)) > 30;"
+  },
+  {
+    "IncorrectQuery": "SELECT o.order_date, c.campaign_name FROM orders o INNER JOIN campaigns c ON o.campaign_id = c.campaign_name INNER JOIN shipping s ON o.order_id = s.fk_order_id WHERE o.order_date BETWEEN '2022-01-01' AND '2022-12-31' GROUP BY o.order_date, c.campaign_name ORDER BY o.order_date, c.campaign_name",
+    "CorrectQuery": "SELECT o.order_date, c.campaign_name FROM orders o INNER JOIN campaigns c ON o.campaign_id = c.campaign_id INNER JOIN shipping s ON o.order_id = s.fk_order_id WHERE o.order_date BETWEEN '2022-01-01' AND '2022-12-31' GROUP BY o.order_date, c.campaign_name ORDER BY o.order_date, c.campaign_name"
+  },
+  {
+    "IncorrectQuery": "SELECT s.official_supplier_business_name, c.campaign_name, sh.shipping_cost, ca.id, rr.refund_amount FROM suppliers s INNER JOIN campaigns c ON s.supplier_unique_identifier = c.campaign_id INNER JOIN shipping sh ON sh.id = c.budget INNER JOIN cart ca ON ca.fk_user_id = sh.shipping_country INNER JOIN refunds_returns rr ON rr.fk_order_id = ca.id WHERE s.average_supplier_rating > 0 AND c.start_date < '2022-01-01' AND sh.shipped_date IS NULL AND ca.cart_status = 'active' AND rr.refund_amount > 100",
+    "CorrectQuery": "SELECT s.official_supplier_business_name, c.campaign_name, sh.shipping_cost, ca.id, rr.refund_amount FROM suppliers s INNER JOIN campaigns c ON s.supplier_unique_identifier = c.campaign_id INNER JOIN shipping sh ON sh.fk_order_id = c.campaign_id INNER JOIN cart ca ON ca.id = sh.fk_order_id INNER JOIN refunds_returns rr ON rr.fk_order_id = ca.id WHERE s.average_supplier_rating > 0 AND c.start_date < '2022-01-01' AND sh.shipped_date IS NULL AND ca.cart_status = 'active' AND rr.refund_amount > 100"
+  }
+]
