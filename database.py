@@ -84,10 +84,10 @@ def delete_all_tables(db_name, user, password, host='localhost', port='5432'):
 
 if __name__ == "__main__":
     # Define your database connection parameters
-    db_name = 'postgres'
+    db_name = 'adobe_emerge'
     user = 'postgres'
-    password = '12345'
-    sql_file_path = '/Users/amokhv/Code_corp/IITD_Hackathon/hackathon_database_dummy.sql'
+    password = '1234'
+    sql_file_path = '/Users/anikamurarka/Desktop/sql_generator_groq/data/data.sql'
 
     # Run this to get started !
     create_tables_from_sql_file(sql_file_path, db_name, user, password)

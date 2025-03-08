@@ -6,6 +6,10 @@ import os
 import psycopg2
 from psycopg2 import sql
 import logging
+from dotenv import load_dotenv
+import random
+
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -16,9 +20,9 @@ total_tokens = 0
 
 # PostgreSQL Connection Parameters
 DB_CONFIG = {
-    'dbname': 'your_database',
-    'user': 'your_username',
-    'password': 'your_password',
+    'dbname': 'adobe_emerge',
+    'user': 'postgres',
+    'password': '1234',
     'host': 'localhost',
     'port': '5432'
 }
@@ -126,6 +130,18 @@ def validate_sql(query):
     :return: Tuple (is_valid, error_message)
     """
     try:
+        if query.strip().startswith('```'):
+            # Extract content between markdown code blocks
+            lines = query.split('\n')
+            filtered_lines = []
+            for line in lines:
+                if line.strip().startswith('```') or line.strip() == '```':
+                    continue
+                filtered_lines.append(line)
+            query = '\n'.join(filtered_lines)
+        query = query.strip()
+        if query.endswith(';'):
+            query = query[:-1]
         conn = get_db_connection()
         if conn:
             cur = conn.cursor()
@@ -145,6 +161,7 @@ def validate_sql(query):
         else:
             return False, "Database connection error"
     except Exception as e:
+        print("hi")
         return False, str(e)
 
 # Function to load input file
@@ -230,10 +247,10 @@ Guidelines:
         
         try:
             sql_query = response_json['choices'][0]['message']['content'].strip()
-            
+            print(sql_query)
             # Validate the query
             is_valid, error_message = validate_sql(sql_query)
-            
+            print(sql_query, is_valid, error_message)
             if not is_valid:
                 # Try to fix the query if it's invalid
                 fix_messages = [
@@ -254,6 +271,7 @@ Guidelines:
             logger.info(f"Processed NL query: {nl_query[:50]}...")
             
         except Exception as e:
+            print(response_json)
             logger.error(f"Error processing query: {e}")
             # Add empty result in case of error
             results.append({"NL": nl_query, "Query": ""})
@@ -369,9 +387,10 @@ Guidelines:
     return results
 
 # Function to call the Groq API
-def call_groq_api(api_key, model, messages, temperature=0.0, max_tokens=1000, n=1):
+# Function to call the Groq API with retry logic
+def call_groq_api(api_key, model, messages, temperature=0.0, max_tokens=1000, n=1, max_retries=5):
     """
-    Call the Groq API to get a response from the language model.
+    Call the Groq API to get a response from the language model with retry logic.
     
     :param api_key: API key for authentication
     :param model: Model name to use
@@ -379,6 +398,7 @@ def call_groq_api(api_key, model, messages, temperature=0.0, max_tokens=1000, n=
     :param temperature: Temperature for the model
     :param max_tokens: Maximum number of tokens to generate
     :param n: Number of responses to generate
+    :param max_retries: Maximum number of retry attempts
     :return: Response from the API and number of tokens used
     """
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -396,17 +416,69 @@ def call_groq_api(api_key, model, messages, temperature=0.0, max_tokens=1000, n=
         'n': n
     }
     
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        response_json = response.json()
-        
-        # Get token count
-        tokens_used = response_json.get('usage', {}).get('completion_tokens', 0)
-        
-        return response_json, tokens_used
-    except Exception as e:
-        logger.error(f"API call error: {e}")
-        return {"choices": [{"message": {"content": ""}}]}, 0
+    # Retry logic with exponential backoff
+    retry_count = 0
+    base_wait_time = 2  # Starting wait time in seconds
+    
+    while retry_count <= max_retries:
+        try:
+            response = requests.post(url, headers=headers, json=data)
+            response_json = response.json()
+            
+            # Check for rate limit error
+            if response.status_code == 429 or (
+                'error' in response_json and 
+                response_json.get('error', {}).get('code') == 'rate_limit_exceeded'
+            ):
+                retry_count += 1
+                if retry_count > max_retries:
+                    logger.error(f"Maximum retries ({max_retries}) exceeded for API call")
+                    return {"choices": [{"message": {"content": ""}}]}, 0
+                
+                # Calculate wait time with exponential backoff and jitter
+                wait_time = base_wait_time * (2 ** (retry_count - 1))
+                # Add some randomness to avoid thundering herd problem
+                wait_time = wait_time * (0.8 + 0.4 * random.random())
+                
+                # Extract wait time from error message if available
+                error_message = response_json.get('error', {}).get('message', '')
+                import re
+                wait_time_match = re.search(r'try again in (\d+\.\d+)s', error_message)
+                if wait_time_match:
+                    suggested_wait = float(wait_time_match.group(1))
+                    # Use the suggested wait time plus a small buffer
+                    wait_time = suggested_wait + 0.5
+                
+                logger.warning(f"Rate limit exceeded. Retrying in {wait_time:.2f} seconds (attempt {retry_count}/{max_retries})")
+                time.sleep(wait_time)
+                continue
+            
+            # Handle other errors
+            if 'error' in response_json:
+                error_message = response_json.get('error', {}).get('message', 'Unknown error')
+                logger.error(f"API error: {error_message}")
+                return {"choices": [{"message": {"content": ""}}]}, 0
+            
+            # Success
+            tokens_used = response_json.get('usage', {}).get('completion_tokens', 0)
+            return response_json, tokens_used
+            
+        except Exception as e:
+            retry_count += 1
+            logger.error(f"API call error: {e}, Retry attempt {retry_count}/{max_retries}")
+            
+            if retry_count > max_retries:
+                logger.error(f"Maximum retries ({max_retries}) exceeded for API call")
+                return {"choices": [{"message": {"content": ""}}]}, 0
+            
+            # Exponential backoff
+            wait_time = base_wait_time * (2 ** (retry_count - 1))
+            # Add some randomness to avoid thundering herd problem
+            wait_time = wait_time * (0.8 + 0.4 * random.random())
+            time.sleep(wait_time)
+    
+    # Should not reach here, but just in case
+    return {"choices": [{"message": {"content": ""}}]}, 0
 
 # Main function
 def main():
@@ -418,8 +490,8 @@ def main():
         return 0, 0
     
     # Specify the paths to input files
-    input_file_path_1 = 'input_nl_to_sql.json'
-    input_file_path_2 = 'input_sql_correction.json'
+    input_file_path_1 = 'data/train_generate_task.json'
+    input_file_path_2 = 'data/train_query_correction_task.json'
     
     # Load data from input files
     data_1 = load_input_file(input_file_path_1)
