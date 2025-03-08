@@ -22,11 +22,11 @@ total_tokens = 0
 
 # PostgreSQL Connection Parameters
 DB_CONFIG = {
-    'dbname': 'adobe_emerge',
-    'user': 'postgres',
-    'password': '1234',
-    'host': 'localhost',
-    'port': '5432'
+    'dbname': os.getenv('DB_NAME'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
+    'host': os.getenv('DB_HOST'), 
+    'port': os.getenv('DB_PORT')
 }
 
 # Function to establish database connection
