@@ -132,35 +132,10 @@ Detailed logging is implemented for debugging and monitoring:
 
 1. System Architecture
 1.1 Component Diagram
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│                     SQL Query Generator and Corrector           │
-│                                                                 │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │
-                                ▼
-┌──────────────┬───────────────┬─────────────────┬────────────────┐
-│              │               │                 │                │
-│ Database     │ Vector Store  │ LLM API Client  │ Data Processor │
-│ Interface    │ Manager       │                 │                │
-│              │               │                 │                │
-└──────┬───────┴───────┬───────┴────────┬────────┴────────┬───────┘
-       │               │                │                 │
-       ▼               ▼                ▼                 ▼
-┌──────────────┐ ┌────────────┐ ┌─────────────┐ ┌─────────────────┐
-│              │ │            │ │             │ │                 │
-│ PostgreSQL   │ │ Vector     │ │ Groq API    │ │ Input/Output    │
-│ Database     │ │ Indexes    │ │             │ │ Files           │
-│              │ │            │ │             │ │                 │
-└──────────────┘ └────────────┘ └─────────────┘ └─────────────────┘
+![Component Diagram](assets/component_diagram.png)
+
 1.2 Data Flow
-┌─────────┐    ┌─────────────┐    ┌────────────────┐    ┌───────────────┐
-│         │    │             │    │                │    │               │
-│ Input   │ => │ Vector      │ => │ LLM Processing │ => │ Validation &  │ => ┌─────────┐
-│ Files   │    │ Retrieval   │    │ (if needed)    │    │ Correction    │    │ Output  │
-│         │    │             │    │                │    │               │    │ Files   │
-└─────────┘    └─────────────┘    └────────────────┘    └───────────────┘    └─────────┘
-                      ▲                                          │
-                      │                                          │
-                      └──────────────────────────────────────────┘
-                                     Feedback Loop
+![Data Flow](assets/data_flow.png)
+
+1.3 Vector Store Architecture 
+![Vector Store](assets/vector_store.png)
