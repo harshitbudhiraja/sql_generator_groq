@@ -10,6 +10,10 @@ This application provides two main functionalities:
 
 The system leverages a combination of the Groq API (using LLaMA 3.1 models) and vector-based retrieval to efficiently generate and correct SQL queries while optimizing for token usage and performance.
 
+### System Overview 
+
+![LLD](assets/LLD.png)
+
 ## Features
 
 - 🔍 **Schema-aware query generation**: Utilizes database schema information to create accurate SQL queries
@@ -18,6 +22,8 @@ The system leverages a combination of the Groq API (using LLaMA 3.1 models) and 
 - 📊 **Batch processing**: Processes queries in batches to manage API rate limits
 - 🔁 **Retry mechanism**: Implements exponential backoff for API call retries
 - 📝 **Comprehensive logging**: Detailed logging for debugging and monitoring
+
+
 
 ## Prerequisites
 
