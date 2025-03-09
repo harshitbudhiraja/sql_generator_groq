@@ -35,8 +35,8 @@ The system leverages a combination of the Groq API (using LLaMA 3.1 models) and 
 
 1. Clone the repository:
    ```
-   git clone <repository-url>
-   cd <repository-directory>
+   git clone https://github.com/harshitbudhiraja/sql_generator_groq.git
+   cd sql_generator_groq
    ```
 
 2. Install the required dependencies:
