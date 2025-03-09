@@ -9,7 +9,7 @@
   },
   {
     "NL": "Find the products in the cart that have a promotional discounted price less than $50, along with the customer's loyalty program tier level and the customer's accumulated loyalty points balance.",
-    "Query": "SELECT \n  p.product_display_name,\n  clp.loyalty_program_tier_level,\n  clp.accumulated_loyalty_points_balance\nFROM \n  cart c\n  JOIN customerinfo cu ON c.fk_user_id = cu.person_customer_id\n  JOIN customers_loyalty_program clp ON cu.person_customer_id = clp.associated_customer_reference_id\n  JOIN products p ON c.fk_product_id = p.unique_product_identifier\nWHERE \n  p.promotional_discounted_price < 50\nORDER BY \n  p.product_display_name;"
+    "Query": "SELECT \n  p.product_display_name,\n  p.promotional_discounted_price,\n  cl.loyalty_program_tier_level,\n  cl.accumulated_loyalty_points_balance\nFROM \n  cart c\n  JOIN customerinfo ci ON c.fk_user_id = ci.person_customer_id\n  JOIN customers_loyalty_program cl ON ci.person_customer_id = cl.associated_customer_reference_id\n  JOIN products p ON c.fk_product_id = p.unique_product_identifier\nWHERE \n  p.promotional_discounted_price < 50\nORDER BY \n  p.product_display_name;"
   },
   {
     "NL": "What is the total discount amount redeemed by customers who have participated in exclusive beta testing and have a loyalty membership unique identifier greater than 1000?",

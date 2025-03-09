@@ -17,7 +17,7 @@
   },
   {
     "IncorrectQuery": "SELECT * FROM customers_loyalty_program AS clp JOIN product_reviews_and_ratings AS prr ON clp.exclusive_member_early_access = prr.submitted_review_star_rating JOIN events AS e ON prr.number_of_helpful_votes_received = e.event_id JOIN suppliers AS s ON e.device_ip_address = s.supplier_tax_identification_number JOIN cart AS c ON s.total_number_of_products_supplied = c.quantity WHERE clp.accumulated_loyalty_points_balance = 'abc' AND prr.verification_status_of_reviewer = e.push_notification_clicked",
-    "CorrectQuery": ""
+    "CorrectQuery": "SELECT *\nFROM customers_loyalty_program AS clp\nJOIN product_reviews_and_ratings AS prr ON clp.exclusive_member_early_access = prr.submitted_review_star_rating\nJOIN events AS e ON prr.number_of_helpful_votes_received = e.event_id\nJOIN suppliers AS s ON e.device_ip_address = s.supplier_tax_identification_number\nJOIN cart AS c ON s.total_number_of_products_supplied = c.quantity\nWHERE clp.accumulated_loyalty_points_balance = 'abc' AND prr.verification_status_of_reviewer = e.push_notification_clicked;"
   },
   {
     "IncorrectQuery": "SELECT campaign_id FROM campaigns WHERE campaign_status = 1",

@@ -11,6 +11,7 @@ import random
 import re
 from vector_store import VectorStore
 from prompt import get_sql_generation_prompt, get_sql_correction_prompt
+from langfuse.decorators import observe
 
 load_dotenv()
 
@@ -23,7 +24,7 @@ total_tokens = 0
 
 # PostgreSQL Connection Parameters
 DB_CONFIG = {
-    'dbname': os.getenv('DB_NAME'),
+    'dbname': "adobe_emerge",
     'user': os.getenv('DB_USER'),
     'password': os.getenv('DB_PASSWORD'),
     'host': os.getenv('DB_HOST'), 
@@ -38,6 +39,8 @@ def get_db_connection():
     :return: Database connection object
     """
     try:
+        print(DB_CONFIG)
+        print(os.getenv('DB_NAME'))
         conn = psycopg2.connect(**DB_CONFIG)
         return conn
     except Exception as e:
@@ -63,6 +66,7 @@ def get_database_schema():
                 WHERE table_schema = 'public'
             """)
             tables = [table[0] for table in cur.fetchall()]
+            print(tables)
             schema['tables'] = tables
             
             # Get columns for each table
@@ -242,6 +246,7 @@ def load_input_file(file_path):
         return []
 
 # Function to generate SQL statements from NL queries using vector retrieval
+
 def generate_sqls(data, db_schema, vector_store=None, batch_size=5):
     """
     Generate SQL statements from the natural language queries using vector retrieval when possible.
@@ -528,6 +533,7 @@ def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
     return results
 
 # Function to call the Groq API with retry logic
+@observe
 def call_groq_api(api_key, model, messages, temperature=0.0, max_tokens=1000, n=1, max_retries=5):
     """
     Call the Groq API to get a response from the language model with retry logic.
@@ -620,6 +626,7 @@ def call_groq_api(api_key, model, messages, temperature=0.0, max_tokens=1000, n=
     return {"choices": [{"message": {"content": ""}}]}, 0
 
 # Main function
+@observe
 def main():
     # Check for environment variable
     if not os.getenv("GROQ_API_KEY"):
