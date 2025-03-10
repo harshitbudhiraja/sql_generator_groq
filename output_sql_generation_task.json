@@ -9,11 +9,11 @@
   },
   {
     "NL": "Find the products in the cart that have a promotional discounted price less than $50, along with the customer's loyalty program tier level and the customer's accumulated loyalty points balance.",
-    "Query": "SELECT \n  p.product_display_name,\n  p.promotional_discounted_price,\n  cl.loyalty_program_tier_level,\n  cl.accumulated_loyalty_points_balance\nFROM \n  cart c\n  JOIN customerinfo ci ON c.fk_user_id = ci.person_customer_id\n  JOIN customers_loyalty_program cl ON ci.person_customer_id = cl.associated_customer_reference_id\n  JOIN products p ON c.fk_product_id = p.unique_product_identifier\nWHERE \n  p.promotional_discounted_price < 50\nORDER BY \n  p.product_display_name;"
+    "Query": "SELECT \n  p.product_display_name,\n  clp.loyalty_program_tier_level,\n  clp.accumulated_loyalty_points_balance\nFROM \n  cart c\n  JOIN customerinfo cu ON c.fk_user_id = cu.person_customer_id\n  JOIN customers_loyalty_program clp ON cu.person_customer_id = clp.associated_customer_reference_id\n  JOIN products p ON c.fk_product_id = p.unique_product_identifier\nWHERE \n  p.promotional_discounted_price < 50\nORDER BY \n  p.product_display_name;"
   },
   {
     "NL": "What is the total discount amount redeemed by customers who have participated in exclusive beta testing and have a loyalty membership unique identifier greater than 1000?",
-    "Query": "SELECT \n    SUM(t1.total_discount_amount_redeemed) AS total_discount_amount\nFROM \n    customers_loyalty_program t1\nJOIN \n    customerinfo t2 ON t1.associated_customer_reference_id = t2.person_customer_id\nWHERE \n    t1.participation_in_exclusive_beta_testing = TRUE AND t1.loyalty_membership_unique_identifier > 1000;"
+    "Query": "SELECT \n    SUM(t1.total_discount_amount_redeemed) AS total_discount_amount\nFROM \n    customers_loyalty_program t1\nJOIN \n    customerinfo t2 ON t1.associated_customer_reference_id = t2.person_customer_id\nWHERE \n    t1.exclusive_member_early_access = TRUE AND t1.loyalty_membership_unique_identifier > 1000;"
   },
   {
     "NL": "Retrieve the total amount of all orders that contain products from the cart of user with ID 123 and have a shipping date after January 1, 2023.",

@@ -14,6 +14,13 @@ def initialize_session_state():
         st.session_state.db_schema = None
     if 'vector_store' not in st.session_state:
         st.session_state.vector_store = None
+    if 'token_usage' not in st.session_state:
+        st.session_state.token_usage = {
+            'total': 0,
+            'generate': 0,
+            'correct': 0,
+            'history': []
+        }
 
 def load_schema():
     """Load database schema and vector store"""
@@ -32,6 +39,20 @@ def load_schema():
         else:
             st.error('Failed to load database schema. Please check your database connection.')
 
+def update_token_usage(operation_type, tokens_used, query_text=None):
+    """Update token usage statistics"""
+    st.session_state.token_usage['total'] += tokens_used
+    st.session_state.token_usage[operation_type] += tokens_used
+    
+    # Add to history with timestamp
+    from datetime import datetime
+    st.session_state.token_usage['history'].append({
+        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'operation': operation_type,
+        'tokens': tokens_used,
+        'query': query_text[:50] + '...' if query_text and len(query_text) > 50 else query_text
+    })
+
 def main():
     st.set_page_config(
         page_title="SQL Query Assistant",
@@ -49,6 +70,20 @@ def main():
         st.header("Controls")
         if st.button("Load/Reload Schema"):
             load_schema()
+        
+        st.divider()
+        
+        # Token usage display in sidebar
+        
+        # Token usage history
+        if st.session_state.token_usage['history']:
+            with st.expander("Usage History"):
+                for entry in reversed(st.session_state.token_usage['history']):
+                    st.text(f"{entry['timestamp']} - {entry['operation']}")
+                    st.text(f"Tokens: {entry['tokens']}")
+                    if entry['query']:
+                        st.text(f"Query: {entry['query']}")
+                    st.divider()
         
         st.divider()
         st.markdown("""
@@ -82,11 +117,23 @@ def main():
             if st.button("Generate SQL", key="generate_single"):
                 if nl_query:
                     with st.spinner('Generating SQL...'):
-                        result = generate_sqls(
+                        result, tokens = generate_sqls(
                             [{"NL": nl_query}],
                             st.session_state.db_schema,
                             st.session_state.vector_store
                         )
+                        
+                        # Assume the result includes token usage information
+                        # If your generate_sqls function doesn't return token info,
+                        # modify it to include this data or estimate it here
+                        tokens_used =tokens
+                        if tokens_used == 0:
+                            # If not available, you can estimate based on input/output length
+                            # This is a very rough estimation and should be replaced with actual token counts
+                            tokens_used = len(nl_query) // 4
+                        
+                        update_token_usage('generate', tokens_used, nl_query)
+                        
                         if result and result[0]["Query"]:
                             st.code(result[0]["Query"], language="sql")
                         else:
@@ -100,11 +147,19 @@ def main():
                 data = json.load(uploaded_file)
                 if st.button("Process File", key="generate_file_button"):
                     with st.spinner('Processing queries...'):
-                        results = generate_sqls(
+                        results, tokens = generate_sqls(
                             data,
                             st.session_state.db_schema,
                             st.session_state.vector_store
                         )
+                        
+                        # Estimate token usage for batch processing
+                        total_tokens = 0
+                        for item in data:
+                            # Simple estimation - replace with actual token counting
+                            total_tokens += tokens
+                        
+                        update_token_usage('generate', total_tokens, f"Batch processing {len(data)} queries")
                         
                         # Display results in an expandable section
                         for i, result in enumerate(results, 1):
@@ -136,11 +191,20 @@ def main():
             if st.button("Correct SQL", key="correct_single"):
                 if incorrect_sql:
                     with st.spinner('Correcting SQL...'):
-                        result = correct_sqls(
+                        result, tokens = correct_sqls(
                             [{"IncorrectQuery": incorrect_sql}],
                             st.session_state.db_schema,
                             st.session_state.vector_store
                         )
+                        
+                        # Estimate tokens used
+                        tokens_used = tokens
+                        if tokens_used == 0:
+                            # Rough estimation if not available
+                            tokens_used = len(incorrect_sql) // 4
+                        
+                        update_token_usage('correct', tokens_used, incorrect_sql)
+                        
                         if result and result[0]["CorrectQuery"]:
                             st.code(result[0]["CorrectQuery"], language="sql")
                         else:
@@ -154,11 +218,19 @@ def main():
                 data = json.load(uploaded_file)
                 if st.button("Process File", key="correct_file_button"):
                     with st.spinner('Processing corrections...'):
-                        results = correct_sqls(
+                        results, tokens = correct_sqls(
                             data,
                             st.session_state.db_schema,
                             st.session_state.vector_store
                         )
+                        
+                        # Estimate token usage for batch processing
+                        total_tokens = 0
+                        for item in data:
+                            # Simple estimation - replace with actual token counting
+                            total_tokens += tokens
+                        
+                        update_token_usage('correct', total_tokens, f"Batch correcting {len(data)} queries")
                         
                         # Display results in an expandable section
                         for i, result in enumerate(results, 1):
@@ -175,6 +247,39 @@ def main():
                             "corrected_sql_results.json",
                             "application/json"
                         )
+
+    # Add a dedicated Token Usage tab to the main content area
+    with st.expander("Detailed Token Usage Statistics"):
+        st.subheader("Token Usage Overview")
+        
+        # Create metrics in columns
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Tokens", st.session_state.token_usage['total'])
+        with col2:
+            st.metric("Generate SQL Tokens", st.session_state.token_usage['generate'])
+        with col3:
+            st.metric("Correct SQL Tokens", st.session_state.token_usage['correct'])
+        
+        # Display usage history as a table
+        if st.session_state.token_usage['history']:
+            st.subheader("Usage History")
+            history_data = [{
+                'Time': entry['timestamp'],
+                'Operation': entry['operation'],
+                'Tokens': entry['tokens'],
+                'Query': entry['query']
+            } for entry in st.session_state.token_usage['history']]
+            
+            st.dataframe(history_data, use_container_width=True)
+            
+            # Option to download token usage data
+            st.download_button(
+                "Download Token Usage Data",
+                json.dumps(st.session_state.token_usage, indent=2),
+                "token_usage_report.json",
+                "application/json"
+            )
 
 if __name__ == "__main__":
     main()

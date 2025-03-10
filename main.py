@@ -258,6 +258,7 @@ def generate_sqls(data, db_schema, vector_store=None, batch_size=5):
     :return: List of dictionaries with NL queries and generated SQL
     """
     global total_tokens
+    operation_tokens = 0
     results = []
     
     # Get your API key from environment variable
@@ -341,6 +342,7 @@ def generate_sqls(data, db_schema, vector_store=None, batch_size=5):
                 # Call the Groq API
                 response_json, tokens = call_groq_api(api_key, model, messages)
                 total_tokens += tokens
+                operation_tokens += tokens
                 
                 try:
                     sql_query = response_json['choices'][0]['message']['content'].strip()
@@ -363,6 +365,7 @@ def generate_sqls(data, db_schema, vector_store=None, batch_size=5):
                         
                         fix_response, fix_tokens = call_groq_api(api_key, model, fix_messages)
                         total_tokens += fix_tokens
+                        operation_tokens += fix_tokens
                         sql_query = clean_sql_response(fix_response['choices'][0]['message']['content'].strip())
                     
                     # Add result to output list
@@ -384,7 +387,7 @@ def generate_sqls(data, db_schema, vector_store=None, batch_size=5):
         if i + batch_size < len(data):
             time.sleep(1)
     
-    return results
+    return results, operation_tokens
 
 # Function to correct SQL statements using vector retrieval
 def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
@@ -399,7 +402,7 @@ def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
     """
     global total_tokens
     results = []
-    
+    operation_tokens = 0
     # Get your API key from environment variable
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -487,6 +490,7 @@ def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
                 
                 # Call the Groq API
                 response_json, tokens = call_groq_api(api_key, model, messages)
+                operation_tokens += tokens
                 total_tokens += tokens
                 
                 try:
@@ -509,6 +513,7 @@ def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
                         
                         fix_response, fix_tokens = call_groq_api(api_key, model, fix_messages)
                         total_tokens += fix_tokens
+                        operation_tokens += fix_tokens
                         corrected_sql = clean_sql_response(fix_response['choices'][0]['message']['content'].strip())
                     
                     # Add result to output list
@@ -530,7 +535,7 @@ def correct_sqls(data, db_schema, vector_store=None, batch_size=5):
         if i + batch_size < len(data):
             time.sleep(1)
     
-    return results
+    return results, operation_tokens
 
 # Function to call the Groq API with retry logic
 @observe
@@ -681,14 +686,14 @@ def main():
     # Generate SQL statements
     start = time.time()
     logger.info("Starting SQL generation from natural language...")
-    sql_statements = generate_sqls(test_data_1, db_schema, vector_store=vector_store)
+    sql_statements, tokens = generate_sqls(test_data_1, db_schema, vector_store=vector_store)
     generate_sqls_time = time.time() - start
     logger.info(f"SQL generation completed in {generate_sqls_time:.2f} seconds")
     
     # Correct SQL statements
     start = time.time()
     logger.info("Starting SQL correction...")
-    corrected_sqls = correct_sqls(test_data_2, db_schema, vector_store=vector_store)
+    corrected_sqls, tokens = correct_sqls(test_data_2, db_schema, vector_store=vector_store)
     correct_sqls_time = time.time() - start
     logger.info(f"SQL correction completed in {correct_sqls_time:.2f} seconds")
     
